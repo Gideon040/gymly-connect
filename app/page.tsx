@@ -263,7 +263,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Recent Logs */}
+{/* Recent Logs */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="text-lg font-semibold mb-4">📝 Recente Logs</h2>
               {webhookLogs.length === 0 ? (
