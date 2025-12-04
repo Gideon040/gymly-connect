@@ -213,7 +213,7 @@ export default function AdminDashboard() {
                 >
                   {testLoading ? 'Versturen...' : '📱 Test WhatsApp Versturen'}
                 </button>
-                
+                <a
                   href="/test"
                   className="block w-full text-center bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 font-medium transition"
                 >
