@@ -4,15 +4,14 @@ import { sendTemplateMessage } from '../../../lib/whatsapp/client';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { phoneNumber } = body;
+    const { phoneNumber, welcomeDate, welcomeMessage } = body;
 
-    // Appointment reminder template (sandbox pre-approved)
     const result = await sendTemplateMessage({
       to: phoneNumber,
-      contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e', // Appointment reminder
+      contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
       variables: {
-        '1': 'morgen',      // datum
-        '2': '14:00',       // tijd
+        '1': welcomeDate || 'deze week',
+        '2': welcomeMessage || 'Potentia Gym',
       },
     });
 

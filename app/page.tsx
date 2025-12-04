@@ -47,28 +47,22 @@ export default function AdminDashboard() {
     setTestResult(null);
 
     try {
-      const response = await fetch('/api/webhooks/gymly', {
+      const response = await fetch('/api/test-whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          eventType: 'BusinessLeadCreated',
-          businessId: 'test-123',
-          data: {
-            lead: {
-              id: `lead-${Date.now()}`,
-              firstName: 'Test',
-              lastName: 'Gebruiker',
-              phoneNumber: config.testPhone,
-              email: 'test@example.com',
-            },
-            business: { id: 'test-123', name: config.gymName },
-          },
+          phoneNumber: config.testPhone,
+          welcomeDate: config.welcomeDate,
+          welcomeMessage: config.welcomeMessage,
         }),
       });
 
       const data = await response.json();
       setTestResult(JSON.stringify(data, null, 2));
-      setWebhookLogs(prev => [`[${new Date().toLocaleTimeString()}] Test webhook sent`, ...prev.slice(0, 9)]);
+      setWebhookLogs(prev => [
+        `[${new Date().toLocaleTimeString()}] WhatsApp verstuurd naar ${config.testPhone}`, 
+        ...prev.slice(0, 9)
+      ]);
     } catch (error) {
       setTestResult(`Error: ${error}`);
     } finally {
