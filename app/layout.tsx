@@ -29,17 +29,18 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+        <script
+          async
+          defer
+          id="gymly-widget-app"
+          data-gymly-id="210f4d5d-250e-4175-8f4b-6d709ee518e1"
+          src="https://cdn.gymly.io/widget.js"
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <Script
-          id="gymly-widget-app"
-          data-gymly-id="210f4d5d-250e-4175-8f4b-6d709ee518e1"
-          src="https://cdn.gymly.io/widget.js"
-          strategy="lazyOnload"
-        />
       </body>
     </html>
   );
