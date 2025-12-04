@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import { sendTemplateMessage } from '../../../../lib/whatsapp/client';
 
-// Gymly webhook handler
+// Config (later uit database, nu hardcoded)
+const CONFIG = {
+  welcomeDate: 'deze week',
+  welcomeMessage: 'Potentia Gym - we kijken ernaar uit je te ontmoeten!',
+};
+
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
     
-    // Log voor debugging
-    console.log('📥 Gymly webhook received:', JSON.stringify(payload, null, 2));
+    console.log('📥 Gymly webhook:', JSON.stringify(payload, null, 2));
 
-    const { eventType, data, businessId } = payload;
+    const { eventType, data } = payload;
 
-    // Nieuwe lead aangemaakt (proefles aanmelding)
     if (eventType === 'BusinessLeadCreated') {
       const { lead } = data;
       const phoneNumber = lead.phoneNumber;
@@ -24,14 +27,12 @@ export async function POST(request: Request) {
 
       console.log(`📱 Sending WhatsApp to ${firstName} (${phoneNumber})`);
 
-      // Verstuur welkomst/bevestigingsbericht
-      // TODO: Later eigen template maken, nu sandbox appointment reminder
       const result = await sendTemplateMessage({
         to: phoneNumber,
-        contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e', // Sandbox template
+        contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
         variables: {
-          '1': 'binnenkort',  // datum placeholder
-          '2': 'je proefles', // tijd placeholder  
+          '1': CONFIG.welcomeDate,
+          '2': CONFIG.welcomeMessage,
         },
       });
 
@@ -44,13 +45,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Andere events (later uitbreiden)
-    if (eventType === 'BusinessMembershipCancelled') {
-      console.log('👋 Membership cancelled:', data);
-      // TODO: Heractivatie flow
-    }
-
-    return NextResponse.json({ success: true, eventType, processed: false });
+    return NextResponse.json({ success: true, eventType, handled: false });
 
   } catch (error) {
     console.error('❌ Webhook error:', error);
@@ -61,7 +56,6 @@ export async function POST(request: Request) {
   }
 }
 
-// Gymly might send GET to verify endpoint
 export async function GET() {
-  return NextResponse.json({ status: 'Gymly webhook endpoint active' });
+  return NextResponse.json({ status: 'Gymly webhook active' });
 }
