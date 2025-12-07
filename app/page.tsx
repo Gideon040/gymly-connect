@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 
 interface Config {
-  // Template variabelen
+  // Proefles
   welcomeDate: string;
   welcomeMessage: string;
+  // Opzegging
+  cancelDate: string;
+  cancelMessage: string;
   // Gym info
   gymName: string;
   // Test nummer
@@ -15,6 +18,8 @@ interface Config {
 const defaultConfig: Config = {
   welcomeDate: 'deze week',
   welcomeMessage: 'Potentia Gym - we kijken ernaar uit je te ontmoeten!',
+  cancelDate: 'binnenkort',
+  cancelMessage: 'We vinden het jammer dat je weggaat. Mogen we vragen waarom?',
   gymName: 'Potentia Gym',
   testPhone: '+31624242177',
 };
@@ -23,6 +28,7 @@ export default function AdminDashboard() {
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [saved, setSaved] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [webhookLogs, setWebhookLogs] = useState<string[]>([]);
 
@@ -41,32 +47,80 @@ export default function AdminDashboard() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // Test webhook
-  const testWebhook = async () => {
+  // Test proefles webhook
+  const testProefles = async () => {
     setTestLoading(true);
     setTestResult(null);
 
     try {
-      const response = await fetch('/api/test-whatsapp', {
+      const response = await fetch('/api/webhooks/gymly', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: config.testPhone,
-          welcomeDate: config.welcomeDate,
-          welcomeMessage: config.welcomeMessage,
+          eventType: 'BusinessLeadCreated',
+          businessId: 'test-123',
+          data: {
+            lead: {
+              id: `lead-${Date.now()}`,
+              firstName: 'Test',
+              lastName: 'Gebruiker',
+              phoneNumber: config.testPhone,
+              email: 'test@example.com',
+            },
+            business: { id: 'test-123', name: config.gymName },
+          },
         }),
       });
 
       const data = await response.json();
       setTestResult(JSON.stringify(data, null, 2));
       setWebhookLogs(prev => [
-        `[${new Date().toLocaleTimeString()}] WhatsApp verstuurd naar ${config.testPhone}`, 
+        `[${new Date().toLocaleTimeString()}] ✅ Proefles WhatsApp → ${config.testPhone}`, 
         ...prev.slice(0, 9)
       ]);
     } catch (error) {
       setTestResult(`Error: ${error}`);
     } finally {
       setTestLoading(false);
+    }
+  };
+
+  // Test opzegging webhook
+  const testOpzegging = async () => {
+    setCancelLoading(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('/api/webhooks/gymly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType: 'BusinessMembershipCancelled',
+          businessId: 'test-123',
+          data: {
+            user: {
+              id: `user-${Date.now()}`,
+              firstName: 'Test',
+              lastName: 'Gebruiker',
+              phoneNumber: config.testPhone,
+              email: 'test@example.com',
+            },
+            business: { id: 'test-123', name: config.gymName },
+            membership: { id: 'mem-123', name: 'Basis Abonnement' },
+          },
+        }),
+      });
+
+      const data = await response.json();
+      setTestResult(JSON.stringify(data, null, 2));
+      setWebhookLogs(prev => [
+        `[${new Date().toLocaleTimeString()}] 👋 Opzegging WhatsApp → ${config.testPhone}`, 
+        ...prev.slice(0, 9)
+      ]);
+    } catch (error) {
+      setTestResult(`Error: ${error}`);
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -98,42 +152,33 @@ export default function AdminDashboard() {
             
             {/* Gym Settings */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                🏋️ Gym Instellingen
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Gym Naam
-                  </label>
-                  <input
-                    type="text"
-                    value={config.gymName}
-                    onChange={(e) => setConfig({ ...config, gymName: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+              <h2 className="text-lg font-semibold mb-4">🏋️ Gym Instellingen</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gym Naam
+                </label>
+                <input
+                  type="text"
+                  value={config.gymName}
+                  onChange={(e) => setConfig({ ...config, gymName: e.target.value })}
+                  className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
             </div>
 
-            {/* WhatsApp Template */}
+            {/* Proefles Template */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                💬 WhatsApp Bericht (Proefles Bevestiging)
-              </h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Sandbox template: &quot;Your appointment is coming up on <span className="text-blue-600">{'{datum}'}</span> at <span className="text-blue-600">{'{bericht}'}</span>&quot;
-              </p>
+              <h2 className="text-lg font-semibold mb-4">💬 Proefles Bevestiging</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Datum/Tijd tekst
+                    Datum tekst
                   </label>
                   <input
                     type="text"
                     value={config.welcomeDate}
                     onChange={(e) => setConfig({ ...config, welcomeDate: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border rounded-lg px-4 py-2"
                     placeholder="deze week"
                   />
                 </div>
@@ -145,49 +190,78 @@ export default function AdminDashboard() {
                     type="text"
                     value={config.welcomeMessage}
                     onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Potentia Gym - we kijken ernaar uit!"
+                    className="w-full border rounded-lg px-4 py-2"
                   />
                 </div>
               </div>
-              
-              {/* Preview */}
               <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-sm font-medium text-green-800 mb-2">📱 Preview:</p>
+                <p className="text-sm font-medium text-green-800 mb-1">📱 Preview:</p>
                 <p className="text-sm text-green-700">
-                  &quot;Your appointment is coming up on <strong>{config.welcomeDate}</strong> at <strong>{config.welcomeMessage}</strong>. If you need to change it, please reply back and let us know.&quot;
+                  &quot;Your appointment is coming up on <strong>{config.welcomeDate}</strong> at <strong>{config.welcomeMessage}</strong>.&quot;
+                </p>
+              </div>
+            </div>
+
+            {/* Opzegging Template */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-lg font-semibold mb-4">👋 Opzegging Bericht</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Datum tekst
+                  </label>
+                  <input
+                    type="text"
+                    value={config.cancelDate}
+                    onChange={(e) => setConfig({ ...config, cancelDate: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="binnenkort"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opzegging bericht
+                  </label>
+                  <input
+                    type="text"
+                    value={config.cancelMessage}
+                    onChange={(e) => setConfig({ ...config, cancelMessage: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <p className="text-sm font-medium text-orange-800 mb-1">📱 Preview:</p>
+                <p className="text-sm text-orange-700">
+                  &quot;Your appointment is coming up on <strong>{config.cancelDate}</strong> at <strong>{config.cancelMessage}</strong>.&quot;
                 </p>
               </div>
             </div>
 
             {/* Test Settings */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                🧪 Test Instellingen
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Test Telefoonnummer
-                  </label>
-                  <input
-                    type="text"
-                    value={config.testPhone}
-                    onChange={(e) => setConfig({ ...config, testPhone: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+31612345678"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Let op: nummer moet &quot;join pilot-evening&quot; hebben gestuurd naar sandbox
-                  </p>
-                </div>
+              <h2 className="text-lg font-semibold mb-4">🧪 Test Instellingen</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Test Telefoonnummer
+                </label>
+                <input
+                  type="text"
+                  value={config.testPhone}
+                  onChange={(e) => setConfig({ ...config, testPhone: e.target.value })}
+                  className="w-full border rounded-lg px-4 py-2"
+                  placeholder="+31612345678"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Moet &quot;join pilot-evening&quot; hebben gestuurd naar sandbox
+                </p>
               </div>
             </div>
 
             {/* Save Button */}
             <button
               onClick={saveConfig}
-              className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-medium transition flex items-center justify-center gap-2"
+              className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-medium"
             >
               {saved ? '✓ Opgeslagen!' : '💾 Instellingen Opslaan'}
             </button>
@@ -198,21 +272,22 @@ export default function AdminDashboard() {
             
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-lg font-semibold mb-4">⚡ Acties</h2>
+              <h2 className="text-lg font-semibold mb-4">⚡ Test Acties</h2>
               <div className="space-y-3">
                 <button
-                  onClick={testWebhook}
+                  onClick={testProefles}
                   disabled={testLoading}
-                  className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium transition"
+                  className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
                 >
-                  {testLoading ? 'Versturen...' : '📱 Test WhatsApp Versturen'}
+                  {testLoading ? 'Versturen...' : '📱 Test Proefles'}
                 </button>
-                <a
-                  href="/test"
-                  className="block w-full text-center bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 font-medium transition"
+                <button
+                  onClick={testOpzegging}
+                  disabled={cancelLoading}
+                  className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 font-medium"
                 >
-                  🔧 Uitgebreide Test Pagina
-                </a>
+                  {cancelLoading ? 'Versturen...' : '👋 Test Opzegging'}
+                </button>
               </div>
 
               {testResult && (
@@ -233,31 +308,28 @@ export default function AdminDashboard() {
                   https://gymly-connect.vercel.app/api/webhooks/gymly
                 </code>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Gebruik deze URL in Gymly → Instellingen → Webhooks
-              </p>
             </div>
 
             {/* Status */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="text-lg font-semibold mb-4">📊 Status</h2>
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Twilio</span>
                   <span className="text-sm text-green-600 font-medium">✓ Verbonden</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Gymly Webhook</span>
                   <span className="text-sm text-green-600 font-medium">✓ Actief</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Mode</span>
                   <span className="text-sm text-yellow-600 font-medium">Sandbox</span>
                 </div>
               </div>
             </div>
 
-{/* Recent Logs */}
+            {/* Recent Logs */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="text-lg font-semibold mb-4">📝 Recente Logs</h2>
               {webhookLogs.length === 0 ? (
