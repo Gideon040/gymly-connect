@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { getAllActiveMembers, getInactiveMembers } from '../../../../lib/gymly/client';
 import { sendTemplateMessage } from '../../../../lib/whatsapp/client';
 
+const GYMLY_API_URL = 'https://api.gymly.io';
+const GYMLY_API_KEY = process.env.GYMLY_API_KEY!;
+const GYMLY_BUSINESS_ID = process.env.GYMLY_BUSINESS_ID!;
+
 const MESSAGES = {
   inactive30: {
     date: 'alweer 30 dagen',
@@ -20,6 +24,65 @@ const MESSAGES = {
 const sentMessages = new Map<string, number>();
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const debugRaw = searchParams.get('debug') === 'raw';
+
+  // === DEBUG MODE: Raw API Response ===
+  if (debugRaw) {
+    try {
+      // List endpoint
+      const listResponse = await fetch(
+        `${GYMLY_API_URL}/api/v2/businesses/${GYMLY_BUSINESS_ID}/users?page=1&size=3&active=true&type=MEMBER`,
+        {
+          headers: {
+            'Authorization': `ApiKey ${GYMLY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const listData = await listResponse.json();
+      const firstUser = listData.content?.[0];
+
+      if (!firstUser) {
+        return NextResponse.json({ error: 'No users found' });
+      }
+
+      // Detail endpoint
+      const detailResponse = await fetch(
+        `${GYMLY_API_URL}/api/v2/businesses/${GYMLY_BUSINESS_ID}/users/${firstUser.id}`,
+        {
+          headers: {
+            'Authorization': `ApiKey ${GYMLY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const detailData = await detailResponse.json();
+
+      return NextResponse.json({
+        listEndpoint: {
+          keys: Object.keys(firstUser),
+          user: firstUser,
+          hasDateOfBirth: 'dateOfBirth' in firstUser,
+          dateOfBirthValue: firstUser.dateOfBirth,
+        },
+        detailEndpoint: {
+          keys: Object.keys(detailData),
+          user: detailData,
+          hasDateOfBirth: 'dateOfBirth' in detailData,
+          dateOfBirthValue: detailData.dateOfBirth,
+        },
+        comparison: {
+          listHasBirthday: !!firstUser.dateOfBirth,
+          detailHasBirthday: !!detailData.dateOfBirth,
+        },
+      });
+    } catch (error) {
+      return NextResponse.json({ error: String(error) }, { status: 500 });
+    }
+  }
+
+  // === NORMAL CRON MODE ===
   const authHeader = request.headers.get('authorization');
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

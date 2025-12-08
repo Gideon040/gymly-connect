@@ -2,7 +2,7 @@ const GYMLY_API_URL = 'https://api.gymly.io';
 const GYMLY_API_KEY = process.env.GYMLY_API_KEY!;
 const GYMLY_BUSINESS_ID = process.env.GYMLY_BUSINESS_ID!;
 
-interface GymlyUser {
+export interface GymlyUser {
   id: string;
   firstName: string;
   lastName: string;
@@ -12,6 +12,7 @@ interface GymlyUser {
   active: boolean;
   lastCheckinAt: string | null;
   dateOfBirth: string | null;
+  gender: string | null;
 }
 
 interface GymlyUsersResponse {
@@ -21,10 +22,11 @@ interface GymlyUsersResponse {
   number: number;
 }
 
-export async function getAllActiveMembers(): Promise<GymlyUser[]> {
+export async function getAllActiveMembers(debug = false): Promise<GymlyUser[]> {
   const allUsers: GymlyUser[] = [];
   let page = 1;
   let totalPages = 1;
+  let rawFirstUser: unknown = null;
 
   while (page <= totalPages) {
     const response = await fetch(
@@ -42,12 +44,39 @@ export async function getAllActiveMembers(): Promise<GymlyUser[]> {
     }
 
     const data: GymlyUsersResponse = await response.json();
+    
+    // Log raw response van eerste user
+    if (debug && page === 1 && data.content.length > 0) {
+      rawFirstUser = data.content[0];
+      console.log('🔍 RAW API keys:', Object.keys(data.content[0]));
+      console.log('🔍 RAW first user:', JSON.stringify(data.content[0], null, 2));
+    }
+
     allUsers.push(...data.content);
     totalPages = data.totalPages;
     page++;
   }
 
   return allUsers;
+}
+
+// Nieuwe functie: haal 1 specifieke user op voor volledige details
+export async function getUserDetails(userId: string): Promise<GymlyUser> {
+  const response = await fetch(
+    `${GYMLY_API_URL}/api/v2/businesses/${GYMLY_BUSINESS_ID}/users/${userId}`,
+    {
+      headers: {
+        'Authorization': `ApiKey ${GYMLY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gymly API error: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 export function getInactiveMembers(users: GymlyUser[], days: number): GymlyUser[] {
