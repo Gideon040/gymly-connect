@@ -8,6 +8,7 @@ const navItems = [
   { href: '/proefles', label: '📱 Proefles' },
   { href: '/opzegging', label: '👋 Opzegging' },
   { href: '/inactief', label: '😴 Inactieve Leden' },
+  { href: '/verjaardagen', label: '🎂 Verjaardagen' },
   { href: '/test', label: '🧪 Testen' },
 ];
 

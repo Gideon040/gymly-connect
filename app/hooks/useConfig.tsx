@@ -38,13 +38,33 @@ const DEFAULT_INACTIVE_RESPONSES: Record<string, { date: string; message: string
   '60': { date: 'al 60 dagen', message: 'Lang niet gezien! We hebben je plek warm gehouden. Zullen we een afspraak maken om je weer op weg te helpen?' },
 };
 
+// Default birthday message
+const DEFAULT_BIRTHDAY_MESSAGE = {
+  date: 'vandaag jarig',
+  message: '🎉 Gefeliciteerd met je verjaardag! Kom langs voor een feestelijke workout - je eerste drankje is van ons!',
+};
+
+// Default class reminder message
+const DEFAULT_CLASS_REMINDER_MESSAGE = {
+  date: 'morgen',
+  message: 'Je staat ingeschreven voor een les! Vergeet niet je sportspullen mee te nemen 💪',
+};
+
 export interface Config {
+  // Gym info
   gymName: string;
   testPhone: string;
+  // Proefles
   welcomeDate: string;
   welcomeMessage: string;
+  // Opzegging
   cancelResponses: Record<string, { date: string; message: string }>;
+  // Inactieve leden
   inactiveResponses: Record<string, { date: string; message: string }>;
+  // Verjaardagen
+  birthdayMessage: { date: string; message: string };
+  // Les reminders
+  classReminderMessage: { date: string; message: string };
 }
 
 const defaultConfig: Config = {
@@ -54,6 +74,8 @@ const defaultConfig: Config = {
   welcomeMessage: 'Potentia Gym - we kijken ernaar uit je te ontmoeten!',
   cancelResponses: DEFAULT_CANCEL_RESPONSES,
   inactiveResponses: DEFAULT_INACTIVE_RESPONSES,
+  birthdayMessage: DEFAULT_BIRTHDAY_MESSAGE,
+  classReminderMessage: DEFAULT_CLASS_REMINDER_MESSAGE,
 };
 
 interface ConfigContextType {
@@ -61,6 +83,8 @@ interface ConfigContextType {
   updateConfig: (updates: Partial<Config>) => void;
   updateCancelResponse: (reason: string, field: 'date' | 'message', value: string) => void;
   updateInactiveResponse: (days: string, field: 'date' | 'message', value: string) => void;
+  updateBirthdayMessage: (field: 'date' | 'message', value: string) => void;
+  updateClassReminderMessage: (field: 'date' | 'message', value: string) => void;
   saveConfig: () => void;
   saved: boolean;
 }
@@ -73,7 +97,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   // Load from localStorage
   useEffect(() => {
-    const savedConfig = localStorage.getItem('gymly-config-v3');
+    const savedConfig = localStorage.getItem('gymly-config-v4');
     if (savedConfig) {
       const parsed = JSON.parse(savedConfig);
       setConfig({
@@ -81,6 +105,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         ...parsed,
         cancelResponses: { ...DEFAULT_CANCEL_RESPONSES, ...parsed.cancelResponses },
         inactiveResponses: { ...DEFAULT_INACTIVE_RESPONSES, ...parsed.inactiveResponses },
+        birthdayMessage: { ...DEFAULT_BIRTHDAY_MESSAGE, ...parsed.birthdayMessage },
+        classReminderMessage: { ...DEFAULT_CLASS_REMINDER_MESSAGE, ...parsed.classReminderMessage },
       });
     }
   }, []);
@@ -109,14 +135,37 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const updateBirthdayMessage = (field: 'date' | 'message', value: string) => {
+    setConfig(prev => ({
+      ...prev,
+      birthdayMessage: { ...prev.birthdayMessage, [field]: value },
+    }));
+  };
+
+  const updateClassReminderMessage = (field: 'date' | 'message', value: string) => {
+    setConfig(prev => ({
+      ...prev,
+      classReminderMessage: { ...prev.classReminderMessage, [field]: value },
+    }));
+  };
+
   const saveConfig = () => {
-    localStorage.setItem('gymly-config-v3', JSON.stringify(config));
+    localStorage.setItem('gymly-config-v4', JSON.stringify(config));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   return (
-    <ConfigContext.Provider value={{ config, updateConfig, updateCancelResponse, updateInactiveResponse, saveConfig, saved }}>
+    <ConfigContext.Provider value={{ 
+      config, 
+      updateConfig, 
+      updateCancelResponse, 
+      updateInactiveResponse, 
+      updateBirthdayMessage,
+      updateClassReminderMessage,
+      saveConfig, 
+      saved 
+    }}>
       {children}
     </ConfigContext.Provider>
   );
