@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '../../../../../../lib/supabase/client';
+import { createServerClient } from '../../../../../lib/supabase/client';
 
 export async function GET(
   request: Request,
@@ -15,14 +15,12 @@ export async function GET(
       .eq('id', id)
       .single();
 
-    if (error) throw error;
-    if (!gym) {
+    if (error || !gym) {
       return NextResponse.json({ error: 'Gym not found' }, { status: 404 });
     }
 
     return NextResponse.json({ gym });
   } catch (error) {
-    console.error('Get gym error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
@@ -36,17 +34,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const {
-      name,
-      email,
-      status,
-      gymly_api_key,
-      gymly_business_id,
-      twilio_account_sid,
-      twilio_auth_token,
-      whatsapp_number,
-      test_phone,
-    } = body;
+    const { name, email, status, gymly_api_key, gymly_business_id, twilio_account_sid, twilio_auth_token, whatsapp_number, test_phone } = body;
 
     const updateData: Record<string, unknown> = {
       name,
@@ -58,13 +46,8 @@ export async function PUT(
       settings: test_phone ? { testPhone: test_phone } : {},
     };
 
-    // Only update Twilio credentials if provided
-    if (twilio_account_sid) {
-      updateData.twilio_account_sid = twilio_account_sid;
-    }
-    if (twilio_auth_token) {
-      updateData.twilio_auth_token = twilio_auth_token;
-    }
+    if (twilio_account_sid) updateData.twilio_account_sid = twilio_account_sid;
+    if (twilio_auth_token) updateData.twilio_auth_token = twilio_auth_token;
 
     const { data: gym, error } = await supabase
       .from('gyms')
@@ -77,7 +60,6 @@ export async function PUT(
 
     return NextResponse.json({ gym });
   } catch (error) {
-    console.error('Update gym error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
@@ -90,16 +72,11 @@ export async function DELETE(
   const supabase = createServerClient();
 
   try {
-    const { error } = await supabase
-      .from('gyms')
-      .delete()
-      .eq('id', id);
-
+    const { error } = await supabase.from('gyms').delete().eq('id', id);
     if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete gym error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
