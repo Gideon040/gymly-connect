@@ -1,9 +1,9 @@
 'use client';
 
-import { useConfig } from '../hooks/useConfig';
-import GymSettings from '../components/GymSettings';
-import ConfigCard from '../components/ConfigCard';
-import MessagePreview from '../components/MessagePreview';
+import { useConfig } from '../../hooks/useConfig';
+import GymSettings from '../../components/GymSettings';
+import ConfigCard from '../../components/ConfigCard';
+import MessagePreview from '../../components/MessagePreview';
 
 export default function ProeflesPage() {
   const { config, updateConfig, saveConfig, saved } = useConfig();

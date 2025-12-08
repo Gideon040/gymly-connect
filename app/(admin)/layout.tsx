@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConfigProvider } from '../hooks/useConfig';
 
-
-
 const navItems = [
   { href: '/proefles', label: '📱 Proefles' },
   { href: '/opzegging', label: '👋 Opzegging' },
@@ -19,7 +17,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <ConfigProvider>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white border-b">
           <div className="max-w-6xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
@@ -37,7 +34,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        {/* Navigation */}
         <div className="bg-white border-b">
           <div className="max-w-6xl mx-auto px-6">
             <nav className="flex gap-1">
@@ -61,7 +57,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        {/* Content */}
         <main className="max-w-6xl mx-auto px-6 py-8">
           {children}
         </main>
