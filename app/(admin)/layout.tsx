@@ -29,6 +29,7 @@ const navItems = [
 ];
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
+  '/': { title: 'Dashboard', subtitle: 'Overzicht van je automations' },
   '/proefles': { title: 'Proefles', subtitle: 'Automatische bevestigingen voor nieuwe leads' },
   '/opzegging': { title: 'Opzegging', subtitle: 'Win-back berichten bij opzeggingen' },
   '/inactief': { title: 'Inactieve Leden', subtitle: 'Herinneringen voor inactieve leden' },
