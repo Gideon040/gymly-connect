@@ -8,7 +8,7 @@ const navItems = [
   {
     section: 'Menu',
     items: [
-      { href: '/', label: 'Dashboard' },
+      { href: '/dashboard', label: 'Dashboard' },
     ],
   },
   {
