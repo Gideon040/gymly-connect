@@ -32,15 +32,12 @@ export async function GET(request: Request) {
     errors: [] as string[],
   };
 
-  const debug = {
+  const debug: Record<string, unknown> = {
     totalMembers: 0,
     membersWithPhone: 0,
     membersWithLastCheckin: 0,
     membersWithBirthday: 0,
-    sampleMembers: [] as object[],
-    birthdayMembers: [] as object[],
-    inactive30Members: [] as object[],
-    inactive60Members: [] as object[],
+    usableMembers: 0,
   };
 
   try {
@@ -57,22 +54,64 @@ export async function GET(request: Request) {
     debug.membersWithLastCheckin = allMembers.filter(u => u.lastCheckinAt).length;
     debug.membersWithBirthday = allMembers.filter(u => u.dateOfBirth).length;
 
-    // Sample van eerste 3 leden
-    debug.sampleMembers = allMembers.slice(0, 3).map(u => ({
-      id: u.id,
-      firstName: u.firstName,
-      phoneNumber: u.phoneNumber ? '✅ Ja' : '❌ Nee',
-      lastCheckinAt: u.lastCheckinAt || '❌ Geen data',
-      dateOfBirth: u.dateOfBirth || '❌ Geen data',
-      daysSinceCheckin: u.lastCheckinAt 
-        ? Math.floor((Date.now() - new Date(u.lastCheckinAt).getTime()) / (1000 * 60 * 60 * 24))
-        : null,
-    }));
+    // Leden met BEIDE phone én lastCheckin (dit zijn de bruikbare leden)
+    const usableMembers = allMembers.filter(u => u.phoneNumber && u.lastCheckinAt);
+    debug.usableMembers = usableMembers.length;
+
+    // Toon 10 leden met meeste data (gesorteerd op lastCheckinAt - meest recent eerst)
+    debug.recentActiveMembers = usableMembers
+      .sort((a, b) => new Date(b.lastCheckinAt!).getTime() - new Date(a.lastCheckinAt!).getTime())
+      .slice(0, 10)
+      .map(u => ({
+        firstName: u.firstName,
+        lastName: u.lastName,
+        phoneNumber: u.phoneNumber?.slice(-4),
+        lastCheckinAt: u.lastCheckinAt,
+        daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
+        dateOfBirth: u.dateOfBirth || '❌',
+      }));
+
+    // Check verschillende periodes voor inactief
+    debug.inactivityBreakdown = {
+      '0-7 dagen': usableMembers.filter(u => {
+        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+        return days <= 7;
+      }).length,
+      '8-14 dagen': usableMembers.filter(u => {
+        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+        return days > 7 && days <= 14;
+      }).length,
+      '15-30 dagen': usableMembers.filter(u => {
+        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+        return days > 14 && days <= 30;
+      }).length,
+      '31-60 dagen': usableMembers.filter(u => {
+        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+        return days > 30 && days <= 60;
+      }).length,
+      '60+ dagen': usableMembers.filter(u => {
+        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+        return days > 60;
+      }).length,
+    };
+
+    // Langst inactieve leden (als ze bestaan)
+    debug.longestInactive = usableMembers
+      .sort((a, b) => new Date(a.lastCheckinAt!).getTime() - new Date(b.lastCheckinAt!).getTime())
+      .slice(0, 5)
+      .map(u => ({
+        firstName: u.firstName,
+        lastName: u.lastName,
+        lastCheckinAt: u.lastCheckinAt,
+        daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
+        phoneNumber: u.phoneNumber?.slice(-4),
+      }));
 
     console.log(`📊 Total members: ${allMembers.length}`);
     console.log(`📱 With phone: ${debug.membersWithPhone}`);
     console.log(`📅 With lastCheckin: ${debug.membersWithLastCheckin}`);
     console.log(`🎂 With birthday: ${debug.membersWithBirthday}`);
+    console.log(`✅ Usable (phone + checkin): ${usableMembers.length}`);
 
     // === VERJAARDAGEN ===
     const birthdayMembers = allMembers.filter(user => {
@@ -85,7 +124,7 @@ export async function GET(request: Request) {
     debug.birthdayMembers = birthdayMembers.map(u => ({
       firstName: u.firstName,
       dateOfBirth: u.dateOfBirth,
-      phoneNumber: u.phoneNumber?.slice(-4), // Laatste 4 cijfers
+      phoneNumber: u.phoneNumber?.slice(-4),
     }));
 
     console.log(`🎂 Birthdays today (${todayDay}-${todayMonth}): ${birthdayMembers.length}`);
@@ -118,6 +157,7 @@ export async function GET(request: Request) {
 
     debug.inactive30Members = inactive30.slice(0, 5).map(u => ({
       firstName: u.firstName,
+      lastName: u.lastName,
       lastCheckinAt: u.lastCheckinAt,
       daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
       phoneNumber: u.phoneNumber?.slice(-4),
@@ -125,6 +165,7 @@ export async function GET(request: Request) {
 
     debug.inactive60Members = inactive60.slice(0, 5).map(u => ({
       firstName: u.firstName,
+      lastName: u.lastName,
       lastCheckinAt: u.lastCheckinAt,
       daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
       phoneNumber: u.phoneNumber?.slice(-4),
@@ -133,7 +174,7 @@ export async function GET(request: Request) {
     console.log(`😴 30 days inactive: ${inactive30.length}`);
     console.log(`😴😴 60 days inactive: ${inactive60.length}`);
 
-    // 60 dagen
+    // 60 dagen berichten versturen
     for (const user of inactive60) {
       const lastSent = sentMessages.get(`inactive-${user.id}`);
       if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
@@ -158,7 +199,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // 30 dagen
+    // 30 dagen berichten versturen
     for (const user of inactive30) {
       const lastSent = sentMessages.get(`inactive-${user.id}`);
       if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
