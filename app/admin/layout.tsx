@@ -6,8 +6,7 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { href: '/admin', label: 'Overzicht' },
   { href: '/admin/gyms', label: 'Gyms' },
-  { href: '/admin/logs', label: 'Alle Logs' },
-  { href: '/admin/settings', label: 'Instellingen' },
+  { href: '/admin/logs', label: 'Logs' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
