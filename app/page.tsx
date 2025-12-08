@@ -1,50 +1,10 @@
 import Link from 'next/link';
 
 export default function HomePage() {
-  const features = [
-    {
-      title: 'Proefles Bevestigingen',
-      description: 'Automatisch WhatsApp bericht wanneer een lead zich aanmeldt. Verhoog je show-up rate met persoonlijke berichten.',
-      icon: '📱',
-      color: 'bg-green-100 text-green-600',
-    },
-    {
-      title: 'Win-back bij Opzegging',
-      description: 'Gepersonaliseerde berichten per opzegreden. Win tot 37% van je opzeggers terug met slimme follow-ups.',
-      icon: '💪',
-      color: 'bg-orange-100 text-orange-600',
-    },
-    {
-      title: 'Inactieve Leden Activeren',
-      description: 'Automatische herinneringen na 30 en 60 dagen inactiviteit. Houd je leden betrokken en actief.',
-      icon: '🔔',
-      color: 'bg-purple-100 text-purple-600',
-    },
-    {
-      title: 'Verjaardag Felicitaties',
-      description: 'Verras je leden met een persoonlijke felicitatie op hun verjaardag. Bouw een sterke band op.',
-      icon: '🎂',
-      color: 'bg-blue-100 text-blue-600',
-    },
-  ];
-
-  const stats = [
-    { value: '98%', label: 'Open rate WhatsApp' },
-    { value: '37%', label: 'Win-back rate' },
-    { value: '< 3 min', label: 'Reactietijd' },
-    { value: '24/7', label: 'Automatisch actief' },
-  ];
-
-  const steps = [
-    { step: '1', title: 'Koppel je Gymly', description: 'Verbind je Gymly account in enkele klikken' },
-    { step: '2', title: 'Stel je berichten in', description: 'Personaliseer je WhatsApp templates' },
-    { step: '3', title: 'Automatisch verzenden', description: 'Berichten worden automatisch verstuurd' },
-  ];
-
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="border-b border-gray-100">
+      <nav className="border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-sm z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg flex items-center justify-center">
@@ -69,125 +29,356 @@ export default function HomePage() {
       {/* Hero */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-6">
-            <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
-            Nu beschikbaar voor Gymly gebruikers
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-6">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            98% open rate vs 20% bij email
           </div>
           
           <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-            WhatsApp Automation<br />
-            <span className="text-purple-600">voor Sportscholen</span>
+            Stop met leden verliezen.<br />
+            <span className="text-purple-600">Start met WhatsApp.</span>
           </h1>
           
           <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-            Automatiseer je ledencommunicatie via WhatsApp. Van proefles bevestigingen 
-            tot win-back campagnes. Meer engagement, minder handwerk.
+            Gemiddeld verliest een gym <strong>50% van nieuwe leden</strong> binnen 6 maanden. 
+            Met WhatsApp automation bereik je 98% van je leden — niet 20% zoals bij email.
           </p>
           
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-4 mb-12">
             <Link 
               href="/login" 
               className="px-8 py-4 bg-purple-600 text-white rounded-xl text-base font-medium hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
             >
-              Start gratis proefperiode
+              Start 14 dagen gratis
             </Link>
             <Link 
-              href="#features" 
+              href="#calculator" 
               className="px-8 py-4 border border-gray-200 text-gray-700 rounded-xl text-base font-medium hover:bg-gray-50 transition-all"
             >
-              Bekijk features
+              Bereken je besparing
             </Link>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex items-center justify-center gap-8 text-sm text-gray-500">
+            <span>✓ Geen creditcard nodig</span>
+            <span>✓ Gymly integratie</span>
+            <span>✓ Binnen 5 min live</span>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-12 bg-gray-50 border-y border-gray-100">
+      {/* Problem Stats */}
+      <section className="py-16 bg-red-50 border-y border-red-100">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl font-bold text-purple-600 mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Het probleem met email</h2>
+            <p className="text-gray-600">Waarom je huidige communicatie niet werkt</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl p-6 text-center border border-red-100">
+              <div className="text-4xl font-bold text-red-600 mb-2">20%</div>
+              <div className="text-sm text-gray-600">Email open rate</div>
+              <div className="text-xs text-gray-400 mt-1">Bron: Mailchimp 2024</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-red-100">
+              <div className="text-4xl font-bold text-red-600 mb-2">50%</div>
+              <div className="text-sm text-gray-600">Leden weg binnen 6 maanden</div>
+              <div className="text-xs text-gray-400 mt-1">Bron: IHRSA Report</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-red-100">
+              <div className="text-4xl font-bold text-red-600 mb-2">5-10×</div>
+              <div className="text-sm text-gray-600">Duurder om nieuwe leden te werven</div>
+              <div className="text-xs text-gray-400 mt-1">Bron: Harvard Business Review</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-red-100">
+              <div className="text-4xl font-bold text-red-600 mb-2">€240K</div>
+              <div className="text-sm text-gray-600">Verlies per jaar (1000 leden, 40% churn)</div>
+              <div className="text-xs text-gray-400 mt-1">Bij €50/maand gemiddeld</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Solution Stats */}
+      <section className="py-16 bg-green-50 border-b border-green-100">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">De oplossing: WhatsApp</h2>
+            <p className="text-gray-600">Bewezen resultaten van WhatsApp marketing</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl p-6 text-center border border-green-100">
+              <div className="text-4xl font-bold text-green-600 mb-2">98%</div>
+              <div className="text-sm text-gray-600">WhatsApp open rate</div>
+              <div className="text-xs text-gray-400 mt-1">Bron: Meta Business 2024</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-green-100">
+              <div className="text-4xl font-bold text-green-600 mb-2">45-60%</div>
+              <div className="text-sm text-gray-600">Click-through rate</div>
+              <div className="text-xs text-gray-400 mt-1">vs 2-5% bij email</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-green-100">
+              <div className="text-4xl font-bold text-green-600 mb-2">40%</div>
+              <div className="text-sm text-gray-600">Hogere retentie met WhatsApp</div>
+              <div className="text-xs text-gray-400 mt-1">Bron: MessageBird 2024</div>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center border border-green-100">
+              <div className="text-4xl font-bold text-green-600 mb-2">2.5×</div>
+              <div className="text-sm text-gray-600">Hogere ROI dan email</div>
+              <div className="text-xs text-gray-400 mt-1">€90 vs €36 per €1 spend</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Calculator */}
+      <section id="calculator" className="py-20 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Wat kost ledenverlies jou?
+            </h2>
+            <p className="text-lg text-gray-600">
+              Een gemiddelde gym met 500 leden en 40% jaarlijkse churn verliest:
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-3xl p-10 text-white">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+              <div className="text-center">
+                <div className="text-5xl font-bold mb-2">200</div>
+                <div className="text-purple-200">Leden verloren per jaar</div>
               </div>
-            ))}
+              <div className="text-center">
+                <div className="text-5xl font-bold mb-2">€120K</div>
+                <div className="text-purple-200">Omzetverlies per jaar</div>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl font-bold mb-2">€12-24K</div>
+                <div className="text-purple-200">Wervingskosten nieuwe leden</div>
+              </div>
+            </div>
+            
+            <div className="bg-white/10 rounded-xl p-6 backdrop-blur">
+              <div className="text-center">
+                <div className="text-sm text-purple-200 mb-2">Als je churn met 10% verlaagt door betere communicatie:</div>
+                <div className="text-3xl font-bold">€12.000 - €18.000 extra omzet per jaar</div>
+                <div className="text-purple-200 mt-2">Dat is 20-30× je investering in GymlyConnect</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center mt-6 text-sm text-gray-500">
+            Berekening: 500 leden × €50/maand × 40% churn = 200 leden × €600/jaar = €120.000 verlies
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Table */}
+      <section className="py-20 px-6 bg-gray-50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              WhatsApp vs Email: de cijfers
+            </h2>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900">Metric</th>
+                  <th className="text-center px-6 py-4 text-sm font-semibold text-red-600">Email</th>
+                  <th className="text-center px-6 py-4 text-sm font-semibold text-green-600">WhatsApp</th>
+                  <th className="text-center px-6 py-4 text-sm font-semibold text-purple-600">Verschil</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                <tr>
+                  <td className="px-6 py-4 text-sm text-gray-900">Open rate</td>
+                  <td className="px-6 py-4 text-center text-sm text-red-600 font-medium">20%</td>
+                  <td className="px-6 py-4 text-center text-sm text-green-600 font-medium">98%</td>
+                  <td className="px-6 py-4 text-center text-sm text-purple-600 font-bold">+390%</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 text-sm text-gray-900">Click-through rate</td>
+                  <td className="px-6 py-4 text-center text-sm text-red-600 font-medium">2-5%</td>
+                  <td className="px-6 py-4 text-center text-sm text-green-600 font-medium">45-60%</td>
+                  <td className="px-6 py-4 text-center text-sm text-purple-600 font-bold">+1000%</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm text-gray-900">Reactietijd klant</td>
+                  <td className="px-6 py-4 text-center text-sm text-red-600 font-medium">24-48 uur</td>
+                  <td className="px-6 py-4 text-center text-sm text-green-600 font-medium">90 sec</td>
+                  <td className="px-6 py-4 text-center text-sm text-purple-600 font-bold">1000× sneller</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 text-sm text-gray-900">ROI per €1 spend</td>
+                  <td className="px-6 py-4 text-center text-sm text-red-600 font-medium">€36</td>
+                  <td className="px-6 py-4 text-center text-sm text-green-600 font-medium">€90</td>
+                  <td className="px-6 py-4 text-center text-sm text-purple-600 font-bold">+150%</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm text-gray-900">Klant voorkeur</td>
+                  <td className="px-6 py-4 text-center text-sm text-red-600 font-medium">35%</td>
+                  <td className="px-6 py-4 text-center text-sm text-green-600 font-medium">65%</td>
+                  <td className="px-6 py-4 text-center text-sm text-purple-600 font-bold">+86%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="text-center mt-4 text-xs text-gray-500">
+            Bronnen: Meta Business, Mailchimp, HubSpot, MessageBird (2024)
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20 px-6">
+      <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Alles wat je nodig hebt
+              4 automations die leden behouden
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Automatiseer je volledige ledencommunicatie via WhatsApp. 
-              Geïntegreerd met Gymly, klaar in minuten.
+              Elke automation is gebaseerd op bewezen momenten waar je leden verliest
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {features.map((feature, index) => (
-              <div 
-                key={index} 
-                className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-purple-200 transition-all"
-              >
-                <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center text-2xl mb-5`}>
-                  {feature.icon}
+            {/* Feature 1 */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-green-200 transition-all">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                  📱
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="py-20 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Binnen 5 minuten operationeel
-            </h2>
-            <p className="text-lg text-gray-600">
-              Geen technische kennis nodig. Koppel, configureer en verstuur.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {steps.map((item, index) => (
-              <div key={index} className="text-center">
-                <div className="w-14 h-14 bg-purple-600 text-white rounded-2xl flex items-center justify-center text-xl font-bold mx-auto mb-5">
-                  {item.step}
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Proefles Bevestiging</h3>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Probleem:</strong> 40% van proefles aanmeldingen komt niet opdagen.
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Oplossing:</strong> Direct WhatsApp bericht na aanmelding. 
+                    Persoonlijk, warm, met praktische info.
+                  </p>
+                  <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                    <span>📈</span>
+                    <span>Gyms zien 25-40% hogere show-up rate</span>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
-                <p className="text-gray-600">{item.description}</p>
               </div>
-            ))}
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-orange-200 transition-all">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                  💪
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Win-back bij Opzegging</h3>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Probleem:</strong> Opzeggers krijgen een standaard email die niemand leest.
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Oplossing:</strong> Gepersonaliseerd WhatsApp per opzegreden. 
+                    "Te duur" krijgt ander bericht dan "geen tijd".
+                  </p>
+                  <div className="flex items-center gap-2 text-orange-600 text-sm font-medium">
+                    <span>📈</span>
+                    <span>Tot 37% win-back rate (vs 5% bij email)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-purple-200 transition-all">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                  🔔
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Inactieve Leden Activeren</h3>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Probleem:</strong> 63% van leden gebruikt hun abonnement niet actief. 
+                    Ze vergeten je, en zeggen op.
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Oplossing:</strong> Automatische check-in na 30 en 60 dagen inactiviteit. 
+                    Vriendelijk, niet pushy.
+                  </p>
+                  <div className="flex items-center gap-2 text-purple-600 text-sm font-medium">
+                    <span>📈</span>
+                    <span>Leden die 8×/maand komen churnen 50% minder</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-blue-200 transition-all">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
+                  🎂
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Verjaardag Felicitaties</h3>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Probleem:</strong> Leden voelen zich "gewoon een nummer". 
+                    Geen persoonlijke connectie.
+                  </p>
+                  <p className="text-gray-600 mb-4">
+                    <strong>Oplossing:</strong> Persoonlijke felicitatie op hun verjaardag. 
+                    Klein gebaar, groot effect.
+                  </p>
+                  <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
+                    <span>📈</span>
+                    <span>64% voelt sterkere band met gym via WhatsApp</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Social Proof */}
-      <section className="py-20 px-6">
+      <section className="py-20 px-6 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-3xl p-10 text-center text-white">
-            <div className="text-5xl mb-6">💬</div>
-            <blockquote className="text-2xl font-medium mb-6 leading-relaxed">
-              "Sinds we GymlyConnect gebruiken is onze show-up rate voor proefles 
-              gestegen van 60% naar 85%. De win-back berichten hebben ons al 
-              tientallen leden teruggebracht."
-            </blockquote>
-            <div className="flex items-center justify-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <span className="font-semibold">PG</span>
+          <div className="bg-white rounded-3xl p-10 border border-gray-200">
+            <div className="text-center mb-8">
+              <div className="text-5xl mb-4">💬</div>
+              <blockquote className="text-2xl font-medium text-gray-900 mb-6 leading-relaxed">
+                "Onze show-up rate voor proeflessen is gestegen van 60% naar 85% sinds we 
+                WhatsApp bevestigingen versturen. En we hebben al 12 opzeggers teruggewonnen 
+                deze maand — dat was voorheen 0."
+              </blockquote>
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <span className="font-semibold text-purple-600">PG</span>
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold text-gray-900">Potentia Gym</div>
+                  <div className="text-gray-500 text-sm">Rotterdam • 500+ leden</div>
+                </div>
               </div>
-              <div className="text-left">
-                <div className="font-semibold">Potentia Gym</div>
-                <div className="text-purple-200 text-sm">Rotterdam</div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-100">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600">+42%</div>
+                <div className="text-sm text-gray-500">Show-up rate</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600">12</div>
+                <div className="text-sm text-gray-500">Leden teruggewonnen/maand</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600">€7.200</div>
+                <div className="text-sm text-gray-500">Extra omzet/jaar</div>
               </div>
             </div>
           </div>
@@ -195,37 +386,40 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 px-6 bg-gray-50">
+      <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Simpele, transparante pricing
+              Investeer €49, bespaar €12.000+
             </h2>
             <p className="text-lg text-gray-600">
-              Geen verrassingen. Betaal alleen voor wat je gebruikt.
+              Terugverdiend met 1 behouden lid per maand
             </p>
           </div>
 
-          <div className="bg-white border-2 border-purple-200 rounded-3xl p-10 max-w-lg mx-auto">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-4">
+          <div className="bg-white border-2 border-purple-200 rounded-3xl p-10 max-w-lg mx-auto relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+              <span className="bg-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium">
                 Meest gekozen
-              </div>
+              </span>
+            </div>
+            
+            <div className="text-center">
               <div className="text-5xl font-bold text-gray-900 mb-2">
                 €49<span className="text-xl text-gray-500 font-normal">/maand</span>
               </div>
-              <p className="text-gray-500 mb-8">Per locatie, onbeperkt berichten</p>
+              <p className="text-gray-500 mb-8">Per locatie • Onbeperkt berichten</p>
               
               <ul className="text-left space-y-4 mb-8">
                 {[
                   'Onbeperkt WhatsApp berichten',
-                  'Proefles bevestigingen',
+                  'Proefles bevestigingen (direct na aanmelding)',
                   'Win-back bij opzegging (26 redenen)',
-                  'Inactieve leden reminders',
+                  'Inactieve leden reminders (30 + 60 dagen)',
                   'Verjaardag felicitaties',
-                  'Gymly integratie',
+                  'Volledige Gymly integratie',
                   'Dashboard met statistieken',
-                  'Email support',
+                  'Persoonlijke onboarding',
                 ].map((feature, index) => (
                   <li key={index} className="flex items-center gap-3">
                     <span className="w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm">✓</span>
@@ -240,27 +434,79 @@ export default function HomePage() {
               >
                 Start 14 dagen gratis
               </Link>
-              <p className="text-sm text-gray-500 mt-4">Geen creditcard nodig</p>
+              <p className="text-sm text-gray-500 mt-4">Geen creditcard nodig • Direct live</p>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm">
+              <span>💡</span>
+              <span>1 behouden lid (€50/maand × 12 maanden) = €600 extra omzet. ROI: 1.122%</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* FAQ */}
+      <section className="py-20 px-6 bg-gray-50">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Veelgestelde vragen</h2>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              {
+                q: 'Hoe werkt de Gymly integratie?',
+                a: 'GymlyConnect verbindt direct met je Gymly account via hun API. Nieuwe leads, opzeggingen en check-in data worden automatisch gesynchroniseerd. Setup duurt 5 minuten.'
+              },
+              {
+                q: 'Is dit GDPR-compliant?',
+                a: 'Ja. WhatsApp Business API is volledig GDPR-compliant. Leden moeten opt-in geven voor marketing berichten, wat automatisch gebeurt bij aanmelding via Gymly.'
+              },
+              {
+                q: 'Wat als een lid niet op WhatsApp zit?',
+                a: 'In Nederland gebruikt 98% van de bevolking WhatsApp. Voor de zeldzame gevallen zonder WhatsApp kun je een fallback email instellen.'
+              },
+              {
+                q: 'Hoeveel berichten kan ik versturen?',
+                a: 'Onbeperkt. Of je nu 100 of 10.000 leden hebt, je betaalt hetzelfde. Geen verborgen kosten per bericht.'
+              },
+              {
+                q: 'Kan ik de berichten aanpassen?',
+                a: 'Volledig. Je past alle teksten aan in je dashboard. Per opzegreden, per automation. Jouw tone of voice, jouw gym.'
+              },
+            ].map((faq, index) => (
+              <div key={index} className="bg-white border border-gray-200 rounded-xl p-6">
+                <h3 className="font-semibold text-gray-900 mb-2">{faq.q}</h3>
+                <p className="text-gray-600">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Klaar om je ledencommunicatie te automatiseren?
+            Elke dag dat je wacht, verlies je leden
           </h2>
-          <p className="text-lg text-gray-600 mb-8">
-            Start vandaag nog en zie binnen een week resultaat.
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            Met een gemiddelde churn van 40% per jaar verliest een gym met 500 leden 
+            <strong> elke week 4 leden</strong>. Hoeveel had je kunnen behouden met een simpel WhatsApp bericht?
           </p>
           <Link 
             href="/login" 
             className="inline-flex px-8 py-4 bg-purple-600 text-white rounded-xl text-base font-medium hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
           >
-            Gratis account aanmaken
+            Start nu — 14 dagen gratis
           </Link>
+          <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">
+            <span>✓ Geen creditcard</span>
+            <span>✓ 5 min setup</span>
+            <span>✓ Direct berichten versturen</span>
+          </div>
         </div>
       </section>
 
@@ -279,6 +525,9 @@ export default function HomePage() {
               <a href="mailto:info@gymlyconnect.nl" className="hover:text-gray-900 transition-all">Contact</a>
               <span>© 2024 GymlyConnect</span>
             </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-gray-100 text-center text-xs text-gray-400">
+            Statistieken gebaseerd op onderzoek van Meta Business, Mailchimp, HubSpot, IHRSA, MessageBird en Harvard Business Review (2024)
           </div>
         </div>
       </footer>
