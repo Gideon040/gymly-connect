@@ -2,34 +2,66 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../components/AuthProvider';
+import { supabase } from '../../lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, user } = useAuth();
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Al ingelogd? Redirect
-  if (user) {
-    router.push('/dashboard');
-    return null;
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error);
-      setLoading(false);
+    if (isRegister) {
+      // Registreren
+      if (password !== confirmPassword) {
+        setError('Wachtwoorden komen niet overeen');
+        setLoading(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Wachtwoord moet minimaal 6 tekens zijn');
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      } else {
+        setSuccess('Account aangemaakt! Check je email om te bevestigen, of log direct in.');
+        setIsRegister(false);
+        setPassword('');
+        setConfirmPassword('');
+        setLoading(false);
+      }
     } else {
-      router.push('/dashboard');
+      // Inloggen
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      } else {
+        router.push('/dashboard');
+      }
     }
   }
 
@@ -43,13 +75,22 @@ export default function LoginPage() {
               <span className="text-white font-bold text-xl">G</span>
             </div>
             <h1 className="text-xl font-bold text-gray-900">GymlyConnect</h1>
-            <p className="text-sm text-gray-500">Log in om verder te gaan</p>
+            <p className="text-sm text-gray-500">
+              {isRegister ? 'Maak een account aan' : 'Log in om verder te gaan'}
+            </p>
           </div>
 
           {/* Error */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {error}
+            </div>
+          )}
+
+          {/* Success */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+              {success}
             </div>
           )}
 
@@ -66,6 +107,7 @@ export default function LoginPage() {
                 placeholder="jouw@email.nl"
               />
             </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Wachtwoord</label>
               <input
@@ -77,14 +119,62 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
+
+            {isRegister && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Bevestig wachtwoord</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium text-sm hover:bg-purple-700 disabled:opacity-50 transition-all"
             >
-              {loading ? 'Laden...' : 'Inloggen'}
+              {loading ? 'Laden...' : isRegister ? 'Registreren' : 'Inloggen'}
             </button>
           </form>
+
+          {/* Toggle */}
+          <div className="mt-6 text-center text-sm text-gray-500">
+            {isRegister ? (
+              <>
+                Heb je al een account?{' '}
+                <button
+                  onClick={() => {
+                    setIsRegister(false);
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Log in
+                </button>
+              </>
+            ) : (
+              <>
+                Nog geen account?{' '}
+                <button
+                  onClick={() => {
+                    setIsRegister(true);
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Registreer
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
