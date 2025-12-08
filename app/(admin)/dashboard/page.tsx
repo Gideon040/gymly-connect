@@ -1,6 +1,6 @@
 'use client';
 
-import { useConfig } from '../hooks/useConfig';
+import { useConfig } from '../../hooks/useConfig';
 import Link from 'next/link';
 
 export default function DashboardPage() {
