@@ -26,6 +26,29 @@ export async function getGymById(id: string): Promise<Gym | null> {
   return data;
 }
 
+export async function getGymByGymlyBusinessId(businessId: string): Promise<Gym | null> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('gymly_business_id', businessId)
+    .single();
+  
+  if (error) return null;
+  return data;
+}
+
+export async function getAllActiveGyms(): Promise<Gym[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('status', 'active');
+  
+  if (error) return [];
+  return data;
+}
+
 // === MESSAGE TEMPLATES ===
 export async function getMessageTemplates(gymId: string): Promise<MessageTemplate[]> {
   const supabase = createServerClient();
@@ -139,4 +162,17 @@ export async function getMessageStats(gymId: string, days: number = 30) {
   });
   
   return stats;
+}
+
+export async function getRecentLogs(gymId: string, limit: number = 50): Promise<MessageLog[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('*')
+    .eq('gym_id', gymId)
+    .order('sent_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) return [];
+  return data;
 }

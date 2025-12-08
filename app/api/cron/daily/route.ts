@@ -1,306 +1,272 @@
 import { NextResponse } from 'next/server';
-import { getAllActiveMembers, getInactiveMembers } from '../../../../lib/gymly/client';
 import { sendTemplateMessage } from '../../../../lib/whatsapp/client';
+import { 
+  getAllActiveGyms, 
+  getMessageTemplate, 
+  logMessage 
+} from '../../../../lib/supabase/queries';
 
-const GYMLY_API_URL = 'https://api.gymly.io';
-const GYMLY_API_KEY = process.env.GYMLY_API_KEY!;
-const GYMLY_BUSINESS_ID = process.env.GYMLY_BUSINESS_ID!;
+interface GymlyUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string | null;
+  lastCheckinAt: string | null;
+  dateOfBirth: string | null;
+}
 
-const MESSAGES = {
-  inactive30: {
-    date: 'alweer 30 dagen',
-    message: 'We missen je! Kom je snel weer trainen? Je eerste workout terug is altijd de moeilijkste 💪',
-  },
-  inactive60: {
-    date: 'al 60 dagen',
-    message: 'Lang niet gezien! We hebben je plek warm gehouden. Zullen we een afspraak maken om je weer op weg te helpen?',
-  },
-  birthday: {
-    date: 'vandaag jarig',
-    message: '🎉 Gefeliciteerd met je verjaardag! Kom langs voor een feestelijke workout - je eerste drankje is van ons!',
-  },
-};
+interface GymlyUsersResponse {
+  content: GymlyUser[];
+  totalPages: number;
+}
 
+// Haal alle actieve leden op voor een gym
+async function getAllActiveMembersForGym(apiKey: string, businessId: string): Promise<GymlyUser[]> {
+  const allUsers: GymlyUser[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const response = await fetch(
+      `https://api.gymly.io/api/v2/businesses/${businessId}/users?page=${page}&size=100&active=true&type=MEMBER`,
+      {
+        headers: {
+          'Authorization': `ApiKey ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gymly API error: ${response.status}`);
+    }
+
+    const data: GymlyUsersResponse = await response.json();
+    allUsers.push(...data.content);
+    totalPages = data.totalPages;
+    page++;
+  }
+
+  return allUsers;
+}
+
+// Filter inactieve leden
+function getInactiveMembers(users: GymlyUser[], days: number): GymlyUser[] {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+
+  return users.filter(user => {
+    if (!user.lastCheckinAt || !user.phoneNumber) return false;
+    const lastCheckin = new Date(user.lastCheckinAt);
+    return lastCheckin < cutoffDate;
+  });
+}
+
+// Track berichten om dubbele te voorkomen (per server instance)
 const sentMessages = new Map<string, number>();
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const debugRaw = searchParams.get('debug') === 'raw';
+  const gymSlug = searchParams.get('gym'); // Optioneel: specifieke gym
 
-  // === DEBUG MODE: Raw API Response ===
-  if (debugRaw) {
-    try {
-      // List endpoint
-      const listResponse = await fetch(
-        `${GYMLY_API_URL}/api/v2/businesses/${GYMLY_BUSINESS_ID}/users?page=1&size=3&active=true&type=MEMBER`,
-        {
-          headers: {
-            'Authorization': `ApiKey ${GYMLY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const listData = await listResponse.json();
-      const firstUser = listData.content?.[0];
-
-      if (!firstUser) {
-        return NextResponse.json({ error: 'No users found' });
-      }
-
-      // Detail endpoint
-      const detailResponse = await fetch(
-        `${GYMLY_API_URL}/api/v2/businesses/${GYMLY_BUSINESS_ID}/users/${firstUser.id}`,
-        {
-          headers: {
-            'Authorization': `ApiKey ${GYMLY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const detailData = await detailResponse.json();
-
-      return NextResponse.json({
-        listEndpoint: {
-          keys: Object.keys(firstUser),
-          user: firstUser,
-          hasDateOfBirth: 'dateOfBirth' in firstUser,
-          dateOfBirthValue: firstUser.dateOfBirth,
-        },
-        detailEndpoint: {
-          keys: Object.keys(detailData),
-          user: detailData,
-          hasDateOfBirth: 'dateOfBirth' in detailData,
-          dateOfBirthValue: detailData.dateOfBirth,
-        },
-        comparison: {
-          listHasBirthday: !!firstUser.dateOfBirth,
-          detailHasBirthday: !!detailData.dateOfBirth,
-        },
-      });
-    } catch (error) {
-      return NextResponse.json({ error: String(error) }, { status: 500 });
-    }
-  }
-
-  // === NORMAL CRON MODE ===
+  // Auth check
   const authHeader = request.headers.get('authorization');
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Skip auth voor debug mode
+    if (!debugRaw) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
-  const results = {
-    birthdays: { found: 0, sent: 0 },
-    inactive30: { found: 0, sent: 0 },
-    inactive60: { found: 0, sent: 0 },
-    errors: [] as string[],
-  };
-
-  const debug: Record<string, unknown> = {
-    totalMembers: 0,
-    membersWithPhone: 0,
-    membersWithLastCheckin: 0,
-    membersWithBirthday: 0,
-    usableMembers: 0,
-  };
-
   try {
-    console.log('🔄 Starting daily automation check...');
-
-    const allMembers = await getAllActiveMembers();
-    const today = new Date();
-    const todayMonth = today.getMonth() + 1;
-    const todayDay = today.getDate();
-
-    // === DEBUG INFO ===
-    debug.totalMembers = allMembers.length;
-    debug.membersWithPhone = allMembers.filter(u => u.phoneNumber).length;
-    debug.membersWithLastCheckin = allMembers.filter(u => u.lastCheckinAt).length;
-    debug.membersWithBirthday = allMembers.filter(u => u.dateOfBirth).length;
-
-    // Leden met BEIDE phone én lastCheckin (dit zijn de bruikbare leden)
-    const usableMembers = allMembers.filter(u => u.phoneNumber && u.lastCheckinAt);
-    debug.usableMembers = usableMembers.length;
-
-    // Toon 10 leden met meeste data (gesorteerd op lastCheckinAt - meest recent eerst)
-    debug.recentActiveMembers = usableMembers
-      .sort((a, b) => new Date(b.lastCheckinAt!).getTime() - new Date(a.lastCheckinAt!).getTime())
-      .slice(0, 10)
-      .map(u => ({
-        firstName: u.firstName,
-        lastName: u.lastName,
-        phoneNumber: u.phoneNumber?.slice(-4),
-        lastCheckinAt: u.lastCheckinAt,
-        daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
-        dateOfBirth: u.dateOfBirth || '❌',
-      }));
-
-    // Check verschillende periodes voor inactief
-    debug.inactivityBreakdown = {
-      '0-7 dagen': usableMembers.filter(u => {
-        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
-        return days <= 7;
-      }).length,
-      '8-14 dagen': usableMembers.filter(u => {
-        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
-        return days > 7 && days <= 14;
-      }).length,
-      '15-30 dagen': usableMembers.filter(u => {
-        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
-        return days > 14 && days <= 30;
-      }).length,
-      '31-60 dagen': usableMembers.filter(u => {
-        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
-        return days > 30 && days <= 60;
-      }).length,
-      '60+ dagen': usableMembers.filter(u => {
-        const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
-        return days > 60;
-      }).length,
-    };
-
-    // Langst inactieve leden (als ze bestaan)
-    debug.longestInactive = usableMembers
-      .sort((a, b) => new Date(a.lastCheckinAt!).getTime() - new Date(b.lastCheckinAt!).getTime())
-      .slice(0, 5)
-      .map(u => ({
-        firstName: u.firstName,
-        lastName: u.lastName,
-        lastCheckinAt: u.lastCheckinAt,
-        daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
-        phoneNumber: u.phoneNumber?.slice(-4),
-      }));
-
-    console.log(`📊 Total members: ${allMembers.length}`);
-    console.log(`📱 With phone: ${debug.membersWithPhone}`);
-    console.log(`📅 With lastCheckin: ${debug.membersWithLastCheckin}`);
-    console.log(`🎂 With birthday: ${debug.membersWithBirthday}`);
-    console.log(`✅ Usable (phone + checkin): ${usableMembers.length}`);
-
-    // === VERJAARDAGEN ===
-    const birthdayMembers = allMembers.filter(user => {
-      if (!user.dateOfBirth || !user.phoneNumber) return false;
-      const dob = new Date(user.dateOfBirth);
-      return dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay;
-    });
-
-    results.birthdays.found = birthdayMembers.length;
-    debug.birthdayMembers = birthdayMembers.map(u => ({
-      firstName: u.firstName,
-      dateOfBirth: u.dateOfBirth,
-      phoneNumber: u.phoneNumber?.slice(-4),
-    }));
-
-    console.log(`🎂 Birthdays today (${todayDay}-${todayMonth}): ${birthdayMembers.length}`);
-
-    for (const user of birthdayMembers) {
-      try {
-        await sendTemplateMessage({
-          to: user.phoneNumber!,
-          contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
-          variables: {
-            '1': MESSAGES.birthday.date,
-            '2': MESSAGES.birthday.message,
-          },
-        });
-        results.birthdays.sent++;
-        console.log(`🎂 Sent birthday message to ${user.firstName}`);
-      } catch (error) {
-        results.errors.push(`Birthday ${user.firstName}: ${error}`);
-      }
+    // Haal alle actieve gyms op
+    const gyms = await getAllActiveGyms();
+    
+    if (gyms.length === 0) {
+      return NextResponse.json({ error: 'No active gyms found' }, { status: 404 });
     }
 
-    // === INACTIEVE LEDEN ===
-    const inactive60 = getInactiveMembers(allMembers, 60);
-    const inactive30 = getInactiveMembers(allMembers, 30).filter(
-      user => !inactive60.find(u => u.id === user.id)
-    );
+    const allResults: Record<string, unknown> = {};
 
-    results.inactive30.found = inactive30.length;
-    results.inactive60.found = inactive60.length;
-
-    debug.inactive30Members = inactive30.slice(0, 5).map(u => ({
-      firstName: u.firstName,
-      lastName: u.lastName,
-      lastCheckinAt: u.lastCheckinAt,
-      daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
-      phoneNumber: u.phoneNumber?.slice(-4),
-    }));
-
-    debug.inactive60Members = inactive60.slice(0, 5).map(u => ({
-      firstName: u.firstName,
-      lastName: u.lastName,
-      lastCheckinAt: u.lastCheckinAt,
-      daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
-      phoneNumber: u.phoneNumber?.slice(-4),
-    }));
-
-    console.log(`😴 30 days inactive: ${inactive30.length}`);
-    console.log(`😴😴 60 days inactive: ${inactive60.length}`);
-
-    // 60 dagen berichten versturen
-    for (const user of inactive60) {
-      const lastSent = sentMessages.get(`inactive-${user.id}`);
-      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
-        console.log(`⏭️ Skipping ${user.firstName} - already sent within 7 days`);
+    // Loop door alle gyms
+    for (const gym of gyms) {
+      // Skip als geen Gymly credentials
+      if (!gym.gymly_api_key || !gym.gymly_business_id) {
+        allResults[gym.name] = { skipped: true, reason: 'No Gymly credentials' };
         continue;
       }
 
-      try {
-        await sendTemplateMessage({
-          to: user.phoneNumber!,
-          contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
-          variables: {
-            '1': MESSAGES.inactive60.date,
-            '2': MESSAGES.inactive60.message,
-          },
-        });
-        sentMessages.set(`inactive-${user.id}`, Date.now());
-        results.inactive60.sent++;
-        console.log(`✅ Sent 60-day message to ${user.firstName}`);
-      } catch (error) {
-        results.errors.push(`Inactive60 ${user.firstName}: ${error}`);
-      }
-    }
-
-    // 30 dagen berichten versturen
-    for (const user of inactive30) {
-      const lastSent = sentMessages.get(`inactive-${user.id}`);
-      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
-        console.log(`⏭️ Skipping ${user.firstName} - already sent within 7 days`);
+      // Als specifieke gym gevraagd, skip anderen
+      if (gymSlug && gym.slug !== gymSlug) {
         continue;
       }
 
+      console.log(`🔄 Processing gym: ${gym.name}`);
+
+      const results = {
+        birthdays: { found: 0, sent: 0 },
+        inactive30: { found: 0, sent: 0 },
+        inactive60: { found: 0, sent: 0 },
+        errors: [] as string[],
+      };
+
+      const debug: Record<string, unknown> = {};
+
       try {
-        await sendTemplateMessage({
-          to: user.phoneNumber!,
-          contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
-          variables: {
-            '1': MESSAGES.inactive30.date,
-            '2': MESSAGES.inactive30.message,
-          },
-        });
-        sentMessages.set(`inactive-${user.id}`, Date.now());
-        results.inactive30.sent++;
-        console.log(`✅ Sent 30-day message to ${user.firstName}`);
+        // Haal leden op
+        const allMembers = await getAllActiveMembersForGym(
+          gym.gymly_api_key,
+          gym.gymly_business_id
+        );
+
+        const today = new Date();
+        const todayMonth = today.getMonth() + 1;
+        const todayDay = today.getDate();
+
+        // Debug info
+        debug.totalMembers = allMembers.length;
+        debug.membersWithPhone = allMembers.filter(u => u.phoneNumber).length;
+        debug.membersWithLastCheckin = allMembers.filter(u => u.lastCheckinAt).length;
+        debug.membersWithBirthday = allMembers.filter(u => u.dateOfBirth).length;
+
+        const usableMembers = allMembers.filter(u => u.phoneNumber && u.lastCheckinAt);
+        debug.usableMembers = usableMembers.length;
+
+        // Inactivity breakdown
+        debug.inactivityBreakdown = {
+          '0-7 dagen': usableMembers.filter(u => {
+            const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+            return days <= 7;
+          }).length,
+          '8-14 dagen': usableMembers.filter(u => {
+            const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+            return days > 7 && days <= 14;
+          }).length,
+          '15-30 dagen': usableMembers.filter(u => {
+            const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+            return days > 14 && days <= 30;
+          }).length,
+          '31-60 dagen': usableMembers.filter(u => {
+            const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+            return days > 30 && days <= 60;
+          }).length,
+          '60+ dagen': usableMembers.filter(u => {
+            const days = Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24));
+            return days > 60;
+          }).length,
+        };
+
+        // Haal templates op
+        const template30 = await getMessageTemplate(gym.id, 'inactief_30');
+        const template60 = await getMessageTemplate(gym.id, 'inactief_60');
+        const templateBirthday = await getMessageTemplate(gym.id, 'verjaardag');
+
+        // === VERJAARDAGEN ===
+        if (templateBirthday) {
+          const birthdayMembers = allMembers.filter(user => {
+            if (!user.dateOfBirth || !user.phoneNumber) return false;
+            const dob = new Date(user.dateOfBirth);
+            return dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay;
+          });
+
+          results.birthdays.found = birthdayMembers.length;
+
+          for (const user of birthdayMembers) {
+            try {
+              await sendTemplateMessage({
+                to: user.phoneNumber!,
+                contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
+                variables: {
+                  '1': templateBirthday.date_text,
+                  '2': templateBirthday.message_text,
+                },
+              });
+              await logMessage(gym.id, 'verjaardag', user.phoneNumber!, user.firstName);
+              results.birthdays.sent++;
+            } catch (error) {
+              results.errors.push(`Birthday ${user.firstName}: ${error}`);
+            }
+          }
+        }
+
+        // === INACTIEVE LEDEN ===
+        const inactive60 = getInactiveMembers(allMembers, 60);
+        const inactive30 = getInactiveMembers(allMembers, 30).filter(
+          user => !inactive60.find(u => u.id === user.id)
+        );
+
+        results.inactive30.found = inactive30.length;
+        results.inactive60.found = inactive60.length;
+
+        // 60 dagen
+        if (template60) {
+          for (const user of inactive60) {
+            const cacheKey = `${gym.id}-inactive-${user.id}`;
+            const lastSent = sentMessages.get(cacheKey);
+            if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) continue;
+
+            try {
+              await sendTemplateMessage({
+                to: user.phoneNumber!,
+                contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
+                variables: {
+                  '1': template60.date_text,
+                  '2': template60.message_text,
+                },
+              });
+              sentMessages.set(cacheKey, Date.now());
+              await logMessage(gym.id, 'inactief_60', user.phoneNumber!, user.firstName);
+              results.inactive60.sent++;
+            } catch (error) {
+              results.errors.push(`Inactive60 ${user.firstName}: ${error}`);
+            }
+          }
+        }
+
+        // 30 dagen
+        if (template30) {
+          for (const user of inactive30) {
+            const cacheKey = `${gym.id}-inactive-${user.id}`;
+            const lastSent = sentMessages.get(cacheKey);
+            if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) continue;
+
+            try {
+              await sendTemplateMessage({
+                to: user.phoneNumber!,
+                contentSid: 'HXb5b62575e6e4ff6129ad7c8efe1f983e',
+                variables: {
+                  '1': template30.date_text,
+                  '2': template30.message_text,
+                },
+              });
+              sentMessages.set(cacheKey, Date.now());
+              await logMessage(gym.id, 'inactief_30', user.phoneNumber!, user.firstName);
+              results.inactive30.sent++;
+            } catch (error) {
+              results.errors.push(`Inactive30 ${user.firstName}: ${error}`);
+            }
+          }
+        }
+
+        allResults[gym.name] = { debug, results };
+
       } catch (error) {
-        results.errors.push(`Inactive30 ${user.firstName}: ${error}`);
+        allResults[gym.name] = { error: String(error) };
       }
     }
 
-    console.log('✅ Daily automation complete');
+    console.log('✅ Daily automation complete for all gyms');
 
     return NextResponse.json({
       success: true,
-      debug,
-      results,
+      gymsProcessed: Object.keys(allResults).length,
+      results: allResults,
       timestamp: new Date().toISOString(),
     });
 
   } catch (error) {
     console.error('❌ Daily cron error:', error);
-    return NextResponse.json(
-      { success: false, error: String(error), debug },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }
 }
