@@ -64,13 +64,13 @@ export default function TestPage() {
     }
   };
 
-  const testInactief = async () => {
+  const testDailyCron = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/cron/inactive-members');
+      const response = await fetch('/api/cron/daily');
       const data = await response.json();
       setResult(JSON.stringify(data, null, 2));
-      setLogs(prev => [`[${new Date().toLocaleTimeString()}] 😴 Inactieve leden check`, ...prev.slice(0, 9)]);
+      setLogs(prev => [`[${new Date().toLocaleTimeString()}] 🔄 Daily cron uitgevoerd`, ...prev.slice(0, 9)]);
     } catch (error) {
       setResult(`Error: ${error}`);
     } finally {
@@ -80,7 +80,7 @@ export default function TestPage() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <ConfigCard title="🧪 Test Acties">
+      <ConfigCard title="🧪 Test Webhooks">
         <div className="space-y-4">
           <button
             onClick={testProefles}
@@ -97,20 +97,40 @@ export default function TestPage() {
           >
             {loading ? 'Versturen...' : '👋 Test Opzegging (Te duur)'}
           </button>
-          
+
           <button
-            onClick={testInactief}
+            onClick={() => testOpzegging('LOST_INTEREST')}
             disabled={loading}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+            className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 disabled:opacity-50 font-medium"
           >
-            {loading ? 'Controleren...' : '😴 Test Inactieve Leden Check'}
+            {loading ? 'Versturen...' : '👋 Test Opzegging (Interesse verloren)'}
           </button>
         </div>
       </ConfigCard>
 
-      <ConfigCard title="📊 Resultaten">
-        <TestResult result={result} logs={logs} />
+      <ConfigCard title="⏰ Test Cron Jobs">
+        <div className="space-y-4">
+          <button
+            onClick={testDailyCron}
+            disabled={loading}
+            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+          >
+            {loading ? 'Controleren...' : '🔄 Test Daily Cron (Verjaardagen + Inactief)'}
+          </button>
+          
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Let op: Daily cron haalt echte data op uit Gymly en stuurt WhatsApp naar sandbox nummers.
+            </p>
+          </div>
+        </div>
       </ConfigCard>
+
+      <div className="lg:col-span-2">
+        <ConfigCard title="📊 Resultaten">
+          <TestResult result={result} logs={logs} />
+        </ConfigCard>
+      </div>
     </div>
   );
 }
