@@ -6,6 +6,12 @@ import { ConfigProvider } from '../hooks/useConfig';
 
 const navItems = [
   {
+    section: 'Menu',
+    items: [
+      { href: '/', label: 'Dashboard' },
+    ],
+  },
+  {
     section: 'Automations',
     items: [
       { href: '/proefles', label: 'Proefles' },
