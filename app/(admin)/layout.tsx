@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConfigProvider } from '../hooks/useConfig';
-import { AuthGuard } from '../components/AuthGuard';
-import { useAuth } from '../components/AuthProvider';
+import { AuthGuard } from '../../components/AuthGuard';
+import { useAuth } from '../../components/AuthProvider';
 
 const navItems = [
   {
