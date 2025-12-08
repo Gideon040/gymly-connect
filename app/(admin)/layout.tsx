@@ -1,79 +1,191 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-const navItems = [
-  { href: '/admin', label: 'Overzicht' },
-  { href: '/admin/gyms', label: 'Gyms' },
-  { href: '/admin/logs', label: 'Alle Logs' },
-  { href: '/admin/settings', label: 'Instellingen' },
-];
+interface Config {
+  gymName: string;
+  testPhone: string;
+  welcomeDate: string;
+  welcomeMessage: string;
+  cancelResponses: Record<string, { date: string; message: string }>;
+  inactive30Date: string;
+  inactive30Message: string;
+  inactive60Date: string;
+  inactive60Message: string;
+  birthdayDate: string;
+  birthdayMessage: string;
+}
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+interface ConfigContextType {
+  config: Config;
+  loading: boolean;
+  updateConfig: (updates: Partial<Config>) => void;
+  updateCancelResponse: (reason: string, date: string, message: string) => void;
+  saveConfig: () => Promise<void>;
+  saved: boolean;
+}
+
+const defaultConfig: Config = {
+  gymName: 'Potentia Gym',
+  testPhone: '+31624242177',
+  welcomeDate: 'deze week',
+  welcomeMessage: 'Potentia Gym - we kijken ernaar uit je te ontmoeten!',
+  cancelResponses: {},
+  inactive30Date: 'alweer 30 dagen',
+  inactive30Message: 'We missen je! Kom je snel weer trainen?',
+  inactive60Date: 'al 60 dagen',
+  inactive60Message: 'Lang niet gezien! We hebben je plek warm gehouden.',
+  birthdayDate: 'vandaag jarig',
+  birthdayMessage: '🎉 Gefeliciteerd met je verjaardag!',
+};
+
+const ConfigContext = createContext<ConfigContextType | null>(null);
+
+export function ConfigProvider({ children }: { children: ReactNode }) {
+  const [config, setConfig] = useState<Config>(defaultConfig);
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/templates?gym=potentia-gym');
+      const data = await res.json();
+
+      if (data.templates) {
+        const newConfig = { ...defaultConfig };
+        
+        if (data.gym?.name) {
+          newConfig.gymName = data.gym.name;
+        }
+
+        data.templates.forEach((t: { type: string; trigger_key: string | null; date_text: string; message_text: string }) => {
+          if (t.type === 'proefles') {
+            newConfig.welcomeDate = t.date_text;
+            newConfig.welcomeMessage = t.message_text;
+          } else if (t.type === 'inactief_30') {
+            newConfig.inactive30Date = t.date_text;
+            newConfig.inactive30Message = t.message_text;
+          } else if (t.type === 'inactief_60') {
+            newConfig.inactive60Date = t.date_text;
+            newConfig.inactive60Message = t.message_text;
+          } else if (t.type === 'verjaardag') {
+            newConfig.birthdayDate = t.date_text;
+            newConfig.birthdayMessage = t.message_text;
+          } else if (t.type === 'opzegging' && t.trigger_key) {
+            newConfig.cancelResponses[t.trigger_key] = {
+              date: t.date_text,
+              message: t.message_text,
+            };
+          }
+        });
+
+        setConfig(newConfig);
+      }
+    } catch (error) {
+      console.error('Failed to load config:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(updates: Partial<Config>) {
+    setConfig(prev => ({ ...prev, ...updates }));
+    setSaved(false);
+  }
+
+  function updateCancelResponse(reason: string, date: string, message: string) {
+    setConfig(prev => ({
+      ...prev,
+      cancelResponses: {
+        ...prev.cancelResponses,
+        [reason]: { date, message },
+      },
+    }));
+    setSaved(false);
+  }
+
+  async function saveConfig() {
+    try {
+      // Save proefles
+      await fetch('/api/templates?gym=potentia-gym', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'proefles',
+          dateText: config.welcomeDate,
+          messageText: config.welcomeMessage,
+        }),
+      });
+
+      // Save inactief_30
+      await fetch('/api/templates?gym=potentia-gym', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'inactief_30',
+          dateText: config.inactive30Date,
+          messageText: config.inactive30Message,
+        }),
+      });
+
+      // Save inactief_60
+      await fetch('/api/templates?gym=potentia-gym', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'inactief_60',
+          dateText: config.inactive60Date,
+          messageText: config.inactive60Message,
+        }),
+      });
+
+      // Save verjaardag
+      await fetch('/api/templates?gym=potentia-gym', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'verjaardag',
+          dateText: config.birthdayDate,
+          messageText: config.birthdayMessage,
+        }),
+      });
+
+      // Save cancel responses
+      for (const [reason, data] of Object.entries(config.cancelResponses)) {
+        await fetch('/api/templates?gym=potentia-gym', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'opzegging',
+            triggerKey: reason,
+            dateText: data.date,
+            messageText: data.message,
+          }),
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save config:', error);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 w-60 h-screen bg-gray-900 flex flex-col z-50">
-        {/* Logo */}
-        <div className="p-5 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">G</span>
-            </div>
-            <div>
-              <span className="font-semibold text-[15px] text-white block">GymlyConnect</span>
-              <span className="text-[11px] text-gray-400">Super Admin</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 px-3 py-2">
-            Menu
-          </div>
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || 
-              (item.href !== '/admin' && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-orange-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Bottom */}
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">GA</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-white truncate">Gideon Admin</div>
-              <div className="text-xs text-gray-500">Super Admin</div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-60">
-        <div className="p-8">
-          {children}
-        </div>
-      </main>
-    </div>
+    <ConfigContext.Provider value={{ config, loading, updateConfig, updateCancelResponse, saveConfig, saved }}>
+      {children}
+    </ConfigContext.Provider>
   );
+}
+
+export function useConfig() {
+  const context = useContext(ConfigContext);
+  if (!context) {
+    throw new Error('useConfig must be used within ConfigProvider');
+  }
+  return context;
 }
