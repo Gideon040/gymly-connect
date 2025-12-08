@@ -3,85 +3,79 @@
 import { useConfig } from '../../hooks/useConfig';
 
 export default function VerjaardagenPage() {
-  const { config, updateConfig, saveConfig, saved } = useConfig();
+  const { config, stats, loading, updateConfig, saveConfig, saved } = useConfig();
 
-  const birthdayConfig = config.birthdayMessage || {
-    date: 'vandaag jarig',
-    message: '🎉 Gefeliciteerd met je verjaardag! Kom langs voor een feestelijke workout!',
-  };
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-gray-500">Laden...</div>;
+  }
+
+  const verjaardagCount = stats.byType?.verjaardag || 0;
 
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-value">0</div>
-          <div className="stat-label">Leden met geboortedatum</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-5" style={{ borderLeft: '4px solid #3B82F6' }}>
+          <div className="text-3xl font-bold text-blue-600">0</div>
+          <div className="text-sm text-gray-500">Leden met geboortedatum</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value">0</div>
-          <div className="stat-label">Felicitaties deze maand</div>
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <div className="text-3xl font-bold text-gray-900">{verjaardagCount}</div>
+          <div className="text-sm text-gray-500">Felicitaties verstuurd</div>
         </div>
-        <div className="stat-card green">
-          <div className="stat-value">-</div>
-          <div className="stat-label">Jarigen vandaag</div>
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <div className="text-3xl font-bold text-green-600">-</div>
+          <div className="text-sm text-gray-500">Jarigen vandaag</div>
         </div>
       </div>
 
       {/* Warning */}
-      <div className="alert alert-warning">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
         <span>⚠️</span>
-        <div>
+        <div className="text-sm text-yellow-800">
           <strong>Data niet beschikbaar:</strong> De Gymly API retourneert momenteel geen 
           geboortedatums. We hebben contact opgenomen met Gymly support om dit op te lossen.
         </div>
       </div>
 
       {/* Settings Card */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">
-            <span>🎂</span>
-            Verjaardagsbericht
-          </h2>
-          <span className="status-badge pending">In afwachting van data</span>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Verjaardagsbericht</h2>
+          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+            In afwachting van data
+          </span>
         </div>
-        <div className="card-body">
-          <div className="grid-2">
-            <div>
-              <div className="form-group">
-                <label className="form-label">Datum tekst</label>
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Datum tekst</label>
                 <input
                   type="text"
-                  value={birthdayConfig.date}
-                  onChange={(e) => updateConfig({ 
-                    birthdayMessage: { ...birthdayConfig, date: e.target.value } 
-                  })}
-                  className="form-input"
+                  value={config.birthdayDate}
+                  onChange={(e) => updateConfig({ birthdayDate: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="Bijv. vandaag jarig"
                 />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Felicitatiebericht</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Felicitatiebericht</label>
                 <textarea
-                  value={birthdayConfig.message}
-                  onChange={(e) => updateConfig({ 
-                    birthdayMessage: { ...birthdayConfig, message: e.target.value } 
-                  })}
-                  className="form-input form-textarea"
+                  value={config.birthdayMessage}
+                  onChange={(e) => updateConfig({ birthdayMessage: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[100px] resize-y"
                   placeholder="Je verjaardagsbericht..."
                 />
               </div>
             </div>
-
             <div>
-              <label className="form-label">Preview</label>
-              <div className="message-preview blue mt-2">
-                <div className="message-preview-text">
-                  <strong>{config.gymName}</strong> - {birthdayConfig.date}
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Preview</label>
+              <div className="bg-blue-50 rounded-xl p-4">
+                <div className="text-sm text-gray-800">
+                  <strong>{config.gymName}</strong> - {config.birthdayDate}
                   <br /><br />
-                  {birthdayConfig.message}
+                  {config.birthdayMessage}
                 </div>
               </div>
             </div>
@@ -90,9 +84,9 @@ export default function VerjaardagenPage() {
       </div>
 
       {/* Info */}
-      <div className="alert alert-info">
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
         <span>ℹ️</span>
-        <div>
+        <div className="text-sm text-blue-800">
           <strong>Hoe werkt het?</strong> Zodra Gymly de geboortedatums beschikbaar maakt, 
           ontvangen leden automatisch een felicitatie op hun verjaardag om 08:00.
         </div>
@@ -101,17 +95,14 @@ export default function VerjaardagenPage() {
       {/* Save */}
       <button
         onClick={saveConfig}
-        className={`btn btn-lg btn-block ${saved ? 'btn-success' : 'btn-primary'}`}
+        className={`w-full py-3 rounded-xl text-white font-medium text-sm transition-all ${
+          saved 
+            ? 'bg-green-600 hover:bg-green-700' 
+            : 'bg-purple-600 hover:bg-purple-700'
+        }`}
       >
-        {saved ? '✓ Opgeslagen!' : '💾 Instellingen Opslaan'}
+        {saved ? '✓ Opgeslagen!' : 'Instellingen Opslaan'}
       </button>
-
-      {saved && (
-        <div className="toast">
-          <span>✓</span>
-          Wijzigingen opgeslagen
-        </div>
-      )}
     </div>
   );
 }

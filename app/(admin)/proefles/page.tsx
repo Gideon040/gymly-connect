@@ -3,23 +3,30 @@
 import { useConfig } from '../../hooks/useConfig';
 
 export default function ProeflesPage() {
-  const { config, updateConfig, saveConfig, saved } = useConfig();
+  const { config, stats, loading, updateConfig, saveConfig, saved } = useConfig();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64 text-gray-500">Laden...</div>;
+  }
+
+  const proeflesCount = stats.byType?.proefles || 0;
+  const deliveryRate = stats.deliveryRate || 0;
 
   return (
     <div className="flex flex-col gap-6">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-3xl font-bold text-purple-600">24</div>
+          <div className="text-3xl font-bold text-purple-600">{proeflesCount}</div>
           <div className="text-sm text-gray-500">Berichten deze maand</div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-3xl font-bold text-green-600">92%</div>
+          <div className="text-3xl font-bold text-green-600">{deliveryRate}%</div>
           <div className="text-sm text-gray-500">Delivery rate</div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-3xl font-bold text-gray-900">18</div>
-          <div className="text-sm text-gray-500">Nieuwe leads</div>
+          <div className="text-3xl font-bold text-gray-900">{stats.total || 0}</div>
+          <div className="text-sm text-gray-500">Totaal verstuurd</div>
         </div>
       </div>
 
@@ -28,9 +35,7 @@ export default function ProeflesPage() {
         {/* Settings */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <span>⚙️</span> Instellingen
-            </h2>
+            <h2 className="text-base font-semibold text-gray-900">Instellingen</h2>
           </div>
           <div className="p-6 flex flex-col gap-5">
             <div>
@@ -59,9 +64,7 @@ export default function ProeflesPage() {
         {/* Message */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <span>💬</span> Bevestigingsbericht
-            </h2>
+            <h2 className="text-base font-semibold text-gray-900">Bevestigingsbericht</h2>
           </div>
           <div className="p-6 flex flex-col gap-5">
             <div>
@@ -86,7 +89,7 @@ export default function ProeflesPage() {
             {/* Preview */}
             <div className="bg-green-50 rounded-xl p-4">
               <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                💬 WhatsApp Preview
+                WhatsApp Preview
               </div>
               <div className="text-sm text-gray-800">
                 <strong>{config.gymName}</strong> - {config.welcomeDate}
@@ -116,7 +119,7 @@ export default function ProeflesPage() {
             : 'bg-purple-600 hover:bg-purple-700'
         }`}
       >
-        {saved ? '✓ Opgeslagen!' : '💾 Instellingen Opslaan'}
+        {saved ? '✓ Opgeslagen!' : 'Instellingen Opslaan'}
       </button>
     </div>
   );
