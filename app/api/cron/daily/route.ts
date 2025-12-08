@@ -32,6 +32,17 @@ export async function GET(request: Request) {
     errors: [] as string[],
   };
 
+  const debug = {
+    totalMembers: 0,
+    membersWithPhone: 0,
+    membersWithLastCheckin: 0,
+    membersWithBirthday: 0,
+    sampleMembers: [] as object[],
+    birthdayMembers: [] as object[],
+    inactive30Members: [] as object[],
+    inactive60Members: [] as object[],
+  };
+
   try {
     console.log('🔄 Starting daily automation check...');
 
@@ -39,6 +50,29 @@ export async function GET(request: Request) {
     const today = new Date();
     const todayMonth = today.getMonth() + 1;
     const todayDay = today.getDate();
+
+    // === DEBUG INFO ===
+    debug.totalMembers = allMembers.length;
+    debug.membersWithPhone = allMembers.filter(u => u.phoneNumber).length;
+    debug.membersWithLastCheckin = allMembers.filter(u => u.lastCheckinAt).length;
+    debug.membersWithBirthday = allMembers.filter(u => u.dateOfBirth).length;
+
+    // Sample van eerste 3 leden
+    debug.sampleMembers = allMembers.slice(0, 3).map(u => ({
+      id: u.id,
+      firstName: u.firstName,
+      phoneNumber: u.phoneNumber ? '✅ Ja' : '❌ Nee',
+      lastCheckinAt: u.lastCheckinAt || '❌ Geen data',
+      dateOfBirth: u.dateOfBirth || '❌ Geen data',
+      daysSinceCheckin: u.lastCheckinAt 
+        ? Math.floor((Date.now() - new Date(u.lastCheckinAt).getTime()) / (1000 * 60 * 60 * 24))
+        : null,
+    }));
+
+    console.log(`📊 Total members: ${allMembers.length}`);
+    console.log(`📱 With phone: ${debug.membersWithPhone}`);
+    console.log(`📅 With lastCheckin: ${debug.membersWithLastCheckin}`);
+    console.log(`🎂 With birthday: ${debug.membersWithBirthday}`);
 
     // === VERJAARDAGEN ===
     const birthdayMembers = allMembers.filter(user => {
@@ -48,7 +82,13 @@ export async function GET(request: Request) {
     });
 
     results.birthdays.found = birthdayMembers.length;
-    console.log(`🎂 Birthdays today: ${birthdayMembers.length}`);
+    debug.birthdayMembers = birthdayMembers.map(u => ({
+      firstName: u.firstName,
+      dateOfBirth: u.dateOfBirth,
+      phoneNumber: u.phoneNumber?.slice(-4), // Laatste 4 cijfers
+    }));
+
+    console.log(`🎂 Birthdays today (${todayDay}-${todayMonth}): ${birthdayMembers.length}`);
 
     for (const user of birthdayMembers) {
       try {
@@ -63,7 +103,7 @@ export async function GET(request: Request) {
         results.birthdays.sent++;
         console.log(`🎂 Sent birthday message to ${user.firstName}`);
       } catch (error) {
-        results.errors.push(`Birthday ${user.id}: ${error}`);
+        results.errors.push(`Birthday ${user.firstName}: ${error}`);
       }
     }
 
@@ -75,12 +115,31 @@ export async function GET(request: Request) {
 
     results.inactive30.found = inactive30.length;
     results.inactive60.found = inactive60.length;
-    console.log(`😴 30 days: ${inactive30.length}, 60 days: ${inactive60.length}`);
+
+    debug.inactive30Members = inactive30.slice(0, 5).map(u => ({
+      firstName: u.firstName,
+      lastCheckinAt: u.lastCheckinAt,
+      daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
+      phoneNumber: u.phoneNumber?.slice(-4),
+    }));
+
+    debug.inactive60Members = inactive60.slice(0, 5).map(u => ({
+      firstName: u.firstName,
+      lastCheckinAt: u.lastCheckinAt,
+      daysSinceCheckin: Math.floor((Date.now() - new Date(u.lastCheckinAt!).getTime()) / (1000 * 60 * 60 * 24)),
+      phoneNumber: u.phoneNumber?.slice(-4),
+    }));
+
+    console.log(`😴 30 days inactive: ${inactive30.length}`);
+    console.log(`😴😴 60 days inactive: ${inactive60.length}`);
 
     // 60 dagen
     for (const user of inactive60) {
       const lastSent = sentMessages.get(`inactive-${user.id}`);
-      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) continue;
+      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
+        console.log(`⏭️ Skipping ${user.firstName} - already sent within 7 days`);
+        continue;
+      }
 
       try {
         await sendTemplateMessage({
@@ -93,16 +152,19 @@ export async function GET(request: Request) {
         });
         sentMessages.set(`inactive-${user.id}`, Date.now());
         results.inactive60.sent++;
-        console.log(`😴 Sent 60-day message to ${user.firstName}`);
+        console.log(`✅ Sent 60-day message to ${user.firstName}`);
       } catch (error) {
-        results.errors.push(`Inactive60 ${user.id}: ${error}`);
+        results.errors.push(`Inactive60 ${user.firstName}: ${error}`);
       }
     }
 
     // 30 dagen
     for (const user of inactive30) {
       const lastSent = sentMessages.get(`inactive-${user.id}`);
-      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) continue;
+      if (lastSent && Date.now() - lastSent < 7 * 24 * 60 * 60 * 1000) {
+        console.log(`⏭️ Skipping ${user.firstName} - already sent within 7 days`);
+        continue;
+      }
 
       try {
         await sendTemplateMessage({
@@ -115,9 +177,9 @@ export async function GET(request: Request) {
         });
         sentMessages.set(`inactive-${user.id}`, Date.now());
         results.inactive30.sent++;
-        console.log(`😴 Sent 30-day message to ${user.firstName}`);
+        console.log(`✅ Sent 30-day message to ${user.firstName}`);
       } catch (error) {
-        results.errors.push(`Inactive30 ${user.id}: ${error}`);
+        results.errors.push(`Inactive30 ${user.firstName}: ${error}`);
       }
     }
 
@@ -125,14 +187,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      ...results,
+      debug,
+      results,
       timestamp: new Date().toISOString(),
     });
 
   } catch (error) {
     console.error('❌ Daily cron error:', error);
     return NextResponse.json(
-      { success: false, error: String(error) },
+      { success: false, error: String(error), debug },
       { status: 500 }
     );
   }
