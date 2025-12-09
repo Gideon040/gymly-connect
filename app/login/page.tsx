@@ -34,34 +34,51 @@ export default function LoginPage() {
         return;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) {
-        setError(error.message);
+      if (authError) {
+        setError(authError.message);
         setLoading(false);
-      } else {
-        setSuccess('Account aangemaakt! Check je email om te bevestigen, of log direct in.');
-        setIsRegister(false);
-        setPassword('');
-        setConfirmPassword('');
-        setLoading(false);
+        return;
       }
+
+      // Maak direct een gym aan voor de nieuwe user
+      if (authData.user) {
+        const { error: gymError } = await supabase.from('gyms').insert({
+          owner_id: authData.user.id,
+          email: email,
+          name: 'Mijn Gym',
+          slug: `gym-${authData.user.id.slice(0, 8)}`,
+          status: 'onboarding',
+        });
+
+        if (gymError) {
+          console.error('Gym aanmaken mislukt:', gymError);
+        }
+      }
+
+      setSuccess('Account aangemaakt! Je kunt nu inloggen.');
+      setIsRegister(false);
+      setPassword('');
+      setConfirmPassword('');
+      setLoading(false);
     } else {
       // Inloggen
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        setError(error.message);
+      if (authError) {
+        setError(authError.message);
         setLoading(false);
-      } else {
-        router.push('/dashboard');
+        return;
       }
+
+      router.push('/dashboard');
     }
   }
 

@@ -17,6 +17,7 @@ interface Config {
 
 interface Stats {
   total: number;
+  thisMonth: number;
   byType: Record<string, number>;
   byStatus: Record<string, number>;
   deliveryRate: number;
@@ -31,15 +32,16 @@ interface ConfigContextType {
   updateInactiveResponse: (days: string, field: 'date' | 'message', value: string) => void;
   saveConfig: () => Promise<void>;
   saved: boolean;
+  refetch: () => Promise<void>;
 }
 
 const defaultConfig: Config = {
   gymId: '',
-  gymName: 'Potentia Gym',
-  gymSlug: 'potentia-gym',
-  testPhone: '+31624242177',
+  gymName: 'Mijn Gym',
+  gymSlug: '',
+  testPhone: '',
   welcomeDate: 'deze week',
-  welcomeMessage: 'Potentia Gym - we kijken ernaar uit je te ontmoeten!',
+  welcomeMessage: 'We kijken ernaar uit je te ontmoeten!',
   cancelResponses: {},
   inactiveResponses: {
     '30': { date: 'alweer 30 dagen', message: 'We missen je! Kom je snel weer trainen?' },
@@ -51,6 +53,7 @@ const defaultConfig: Config = {
 
 const defaultStats: Stats = {
   total: 0,
+  thisMonth: 0,
   byType: {},
   byStatus: {},
   deliveryRate: 0,
@@ -63,57 +66,83 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
-
-  // Later: haal gym slug uit auth/session
-  const gymSlug = 'potentia-gym';
+  const [gymSlug, setGymSlug] = useState<string>('');
 
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
+    setLoading(true);
     try {
+      // Eerst gym slug ophalen via auth
+      const { supabase } = await import('../../lib/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Haal gym op voor deze user
+      const { data: gym } = await supabase
+        .from('gyms')
+        .select('*')
+        .eq('owner_id', user.id)
+        .single();
+
+      if (!gym) {
+        setLoading(false);
+        return;
+      }
+
+      setGymSlug(gym.slug);
+
       // Load templates
-      const templatesRes = await fetch(`/api/templates?gym=${gymSlug}`);
+      const templatesRes = await fetch(`/api/templates?gym=${gym.slug}`);
       const templatesData = await templatesRes.json();
 
       // Load stats
-      const statsRes = await fetch(`/api/stats?gym=${gymSlug}`);
+      const statsRes = await fetch(`/api/stats?gym=${gym.slug}`);
       const statsData = await statsRes.json();
 
-      if (templatesData.gym) {
-        const newConfig = { ...defaultConfig };
-        newConfig.gymId = templatesData.gym.id;
-        newConfig.gymName = templatesData.gym.name;
-        newConfig.gymSlug = templatesData.gym.slug;
+      // Build config from gym and templates
+      const newConfig: Config = {
+        ...defaultConfig,
+        gymId: gym.id,
+        gymName: gym.name,
+        gymSlug: gym.slug,
+        testPhone: gym.settings?.testPhone || '',
+      };
 
-        templatesData.templates?.forEach((t: { type: string; trigger_key: string | null; date_text: string; message_text: string }) => {
-          if (t.type === 'proefles') {
-            newConfig.welcomeDate = t.date_text;
-            newConfig.welcomeMessage = t.message_text;
-          } else if (t.type === 'inactief_30') {
-            newConfig.inactiveResponses['30'] = { date: t.date_text, message: t.message_text };
-          } else if (t.type === 'inactief_60') {
-            newConfig.inactiveResponses['60'] = { date: t.date_text, message: t.message_text };
-          } else if (t.type === 'verjaardag') {
-            newConfig.birthdayDate = t.date_text;
-            newConfig.birthdayMessage = t.message_text;
-          } else if (t.type === 'opzegging' && t.trigger_key) {
-            newConfig.cancelResponses[t.trigger_key] = {
-              date: t.date_text,
-              message: t.message_text,
-            };
-          }
-        });
+      templatesData.templates?.forEach((t: { type: string; trigger_key: string | null; date_text: string; message_text: string }) => {
+        if (t.type === 'proefles') {
+          newConfig.welcomeDate = t.date_text;
+          newConfig.welcomeMessage = t.message_text;
+        } else if (t.type === 'inactief_30') {
+          newConfig.inactiveResponses['30'] = { date: t.date_text, message: t.message_text };
+        } else if (t.type === 'inactief_60') {
+          newConfig.inactiveResponses['60'] = { date: t.date_text, message: t.message_text };
+        } else if (t.type === 'verjaardag') {
+          newConfig.birthdayDate = t.date_text;
+          newConfig.birthdayMessage = t.message_text;
+        } else if (t.type === 'opzegging' && t.trigger_key) {
+          newConfig.cancelResponses[t.trigger_key] = {
+            date: t.date_text,
+            message: t.message_text,
+          };
+        }
+      });
 
-        setConfig(newConfig);
-      }
+      setConfig(newConfig);
 
+      // Process stats
       if (statsData.stats) {
         const total = statsData.stats.total || 0;
         const delivered = statsData.stats.byStatus?.delivered || 0;
         setStats({
           ...statsData.stats,
+          thisMonth: statsData.stats.thisMonth || 0,
           deliveryRate: total > 0 ? Math.round((delivered / total) * 100) : 0,
         });
       }
@@ -158,7 +187,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   }
 
   async function saveConfig() {
-    const gymSlug = config.gymSlug;
+    if (!gymSlug) return;
 
     try {
       // Save proefles
@@ -226,7 +255,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       updateCancelResponse, 
       updateInactiveResponse, 
       saveConfig, 
-      saved 
+      saved,
+      refetch: loadData,
     }}>
       {children}
     </ConfigContext.Provider>
