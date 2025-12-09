@@ -1,178 +1,200 @@
-import { createServerClient } from './client';
-import type { Gym, MessageTemplate, MessageLog } from './types';
+import { createClient } from '@supabase/supabase-js';
 
-// === GYMS ===
-export async function getGymBySlug(slug: string): Promise<Gym | null> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('gyms')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-  
-  if (error) return null;
-  return data;
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export async function getGymById(id: string): Promise<Gym | null> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('gyms')
-    .select('*')
-    .eq('id', id)
-    .single();
-  
-  if (error) return null;
-  return data;
-}
+// Server-side client met service role key (voor API routes)
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-export async function getGymByGymlyBusinessId(businessId: string): Promise<Gym | null> {
-  const supabase = createServerClient();
+// === GYM QUERIES ===
+
+export async function getGymByGymlyBusinessId(businessId: string) {
   const { data, error } = await supabase
     .from('gyms')
     .select('*')
     .eq('gymly_business_id', businessId)
     .single();
-  
-  if (error) return null;
+
+  if (error) {
+    console.error('Error fetching gym:', error);
+    return null;
+  }
+
   return data;
 }
 
-export async function getAllActiveGyms(): Promise<Gym[]> {
-  const supabase = createServerClient();
+export async function getGymBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+
+  if (error) {
+    console.error('Error fetching gym:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function getAllActiveGyms() {
   const { data, error } = await supabase
     .from('gyms')
     .select('*')
     .eq('status', 'active');
-  
-  if (error) return [];
-  return data;
+
+  if (error) {
+    console.error('Error fetching gyms:', error);
+    return [];
+  }
+
+  return data || [];
 }
 
-// === MESSAGE TEMPLATES ===
-export async function getMessageTemplates(gymId: string): Promise<MessageTemplate[]> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('message_templates')
-    .select('*')
-    .eq('gym_id', gymId)
-    .eq('is_active', true);
-  
-  if (error) return [];
-  return data;
-}
+// === MESSAGE TEMPLATE QUERIES ===
 
-export async function getMessageTemplate(
-  gymId: string, 
-  type: string, 
-  triggerKey?: string
-): Promise<MessageTemplate | null> {
-  const supabase = createServerClient();
+export async function getMessageTemplate(gymId: string, type: string, triggerKey?: string) {
   let query = supabase
     .from('message_templates')
     .select('*')
     .eq('gym_id', gymId)
     .eq('type', type)
-    .eq('is_active', true);
-  
+    .eq('is_active', true);  // ✅ Fixed: was 'active'
+
   if (triggerKey) {
     query = query.eq('trigger_key', triggerKey);
-  } else {
-    query = query.is('trigger_key', null);
   }
-  
-  const { data, error } = await query.single();
-  if (error) return null;
-  return data;
-}
 
-export async function upsertMessageTemplate(
-  gymId: string,
-  type: string,
-  dateText: string,
-  messageText: string,
-  triggerKey?: string
-): Promise<MessageTemplate | null> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('message_templates')
-    .upsert({
-      gym_id: gymId,
-      type,
-      trigger_key: triggerKey || null,
-      date_text: dateText,
-      message_text: messageText,
-    }, {
-      onConflict: 'gym_id,type,trigger_key',
-    })
-    .select()
-    .single();
-  
+  const { data, error } = await query.single();
+
   if (error) {
-    console.error('Upsert error:', error);
+    // Probeer fallback template zonder trigger_key
+    if (triggerKey) {
+      return getMessageTemplate(gymId, type);
+    }
+    console.error('Error fetching template:', error);
     return null;
   }
+
   return data;
 }
 
-// === MESSAGE LOGS ===
+export async function getAllTemplates(gymId: string) {
+  const { data, error } = await supabase
+    .from('message_templates')
+    .select('*')
+    .eq('gym_id', gymId)
+    .eq('is_active', true);  // ✅ Fixed: was 'active'
+
+  if (error) {
+    console.error('Error fetching templates:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// === MESSAGE LOG QUERIES ===
+
 export async function logMessage(
   gymId: string,
   type: string,
-  recipientPhone: string,
+  phoneNumber: string,
   recipientName?: string,
   triggerKey?: string,
-  status: 'sent' | 'delivered' | 'failed' = 'sent',
+  status: string = 'sent',
   errorMessage?: string
-): Promise<void> {
-  const supabase = createServerClient();
-  await supabase.from('message_logs').insert({
+) {
+  const { error } = await supabase.from('message_logs').insert({
     gym_id: gymId,
     type,
-    trigger_key: triggerKey,
-    recipient_phone: recipientPhone,
+    recipient_phone: phoneNumber,      // ✅ Fixed: was phone_number
     recipient_name: recipientName,
+    trigger_key: triggerKey,
     status,
     error_message: errorMessage,
+    // sent_at is automatic via DEFAULT now()
   });
+
+  if (error) {
+    console.error('Error logging message:', error);
+  }
 }
 
-export async function getMessageStats(gymId: string, days: number = 30) {
-  const supabase = createServerClient();
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  
+export async function hasMessageBeenSent(
+  gymId: string,
+  type: string,
+  phoneNumber: string,
+  withinDays: number = 30
+): Promise<boolean> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - withinDays);
+
   const { data, error } = await supabase
     .from('message_logs')
-    .select('type, status')
+    .select('id')
     .eq('gym_id', gymId)
-    .gte('sent_at', since.toISOString());
-  
-  if (error) return { total: 0, byType: {}, byStatus: {} };
-  
-  const stats = {
-    total: data.length,
-    byType: {} as Record<string, number>,
-    byStatus: {} as Record<string, number>,
+    .eq('type', type)
+    .eq('recipient_phone', phoneNumber)  // ✅ Fixed: was phone_number
+    .eq('status', 'sent')
+    .gte('sent_at', cutoffDate.toISOString())  // ✅ Fixed: was created_at
+    .limit(1);
+
+  if (error) {
+    console.error('Error checking message history:', error);
+    return false;
+  }
+
+  return (data?.length || 0) > 0;
+}
+
+// === STATS QUERIES ===
+
+export async function getMessageStats(gymId: string) {
+  // Total messages
+  const { count: total } = await supabase
+    .from('message_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('gym_id', gymId);
+
+  // By type
+  const { data: byTypeData } = await supabase
+    .from('message_logs')
+    .select('type')
+    .eq('gym_id', gymId);
+
+  const byType: Record<string, number> = {};
+  byTypeData?.forEach(row => {
+    byType[row.type] = (byType[row.type] || 0) + 1;
+  });
+
+  // By status
+  const { data: byStatusData } = await supabase
+    .from('message_logs')
+    .select('status')
+    .eq('gym_id', gymId);
+
+  const byStatus: Record<string, number> = {};
+  byStatusData?.forEach(row => {
+    byStatus[row.status] = (byStatus[row.status] || 0) + 1;
+  });
+
+  // This month
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { count: thisMonth } = await supabase
+    .from('message_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('gym_id', gymId)
+    .gte('sent_at', startOfMonth.toISOString());  // ✅ Fixed: was created_at
+
+  return {
+    total: total || 0,
+    thisMonth: thisMonth || 0,
+    byType,
+    byStatus,
   };
-  
-  data.forEach(log => {
-    stats.byType[log.type] = (stats.byType[log.type] || 0) + 1;
-    stats.byStatus[log.status] = (stats.byStatus[log.status] || 0) + 1;
-  });
-  
-  return stats;
-}
-
-export async function getRecentLogs(gymId: string, limit: number = 50): Promise<MessageLog[]> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('message_logs')
-    .select('*')
-    .eq('gym_id', gymId)
-    .order('sent_at', { ascending: false })
-    .limit(limit);
-  
-  if (error) return [];
-  return data;
 }

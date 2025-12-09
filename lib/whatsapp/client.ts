@@ -1,69 +1,78 @@
 import twilio from 'twilio';
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-const authToken = process.env.TWILIO_AUTH_TOKEN!;
-const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER!;
+interface Gym {
+  id: string;
+  name: string;
+  twilio_account_sid?: string;
+  twilio_auth_token?: string;
+  whatsapp_number?: string;
+}
 
-const client = twilio(accountSid, authToken);
-
-interface SendTemplateMessageParams {
+interface SendMessageOptions {
   to: string;
   contentSid: string;
   variables: Record<string, string>;
+  gym?: Gym;
 }
 
-interface SendFreeformMessageParams {
-  to: string;
-  body: string;
-}
+export async function sendTemplateMessage({ to, contentSid, variables, gym }: SendMessageOptions) {
+  // Gebruik gym-specifieke credentials, of fallback naar env vars
+  const accountSid = gym?.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = gym?.twilio_auth_token || process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = gym?.whatsapp_number || process.env.TWILIO_WHATSAPP_NUMBER;
 
-// Verstuur template bericht (buiten 24u window)
-export async function sendTemplateMessage({ 
-  to, 
-  contentSid, 
-  variables 
-}: SendTemplateMessageParams) {
+  if (!accountSid || !authToken) {
+    throw new Error('Missing Twilio credentials');
+  }
+
+  if (!fromNumber) {
+    throw new Error('Missing WhatsApp number');
+  }
+
+  const client = twilio(accountSid, authToken);
+
+  // Format phone number
+  let formattedTo = to.replace(/\s/g, '');
+  if (!formattedTo.startsWith('+')) {
+    formattedTo = '+31' + formattedTo.replace(/^0/, '');
+  }
+
+  console.log(`📤 Sending WhatsApp to ${formattedTo} from ${fromNumber}`);
+  console.log(`   Using Twilio account: ${accountSid.slice(0, 10)}...`);
+
   const message = await client.messages.create({
-    from: whatsappNumber,
-    to: to.startsWith('whatsapp:') ? to : `whatsapp:${to}`,
+    to: `whatsapp:${formattedTo}`,
+    from: `whatsapp:${fromNumber}`,
     contentSid,
     contentVariables: JSON.stringify(variables),
   });
-  
-  return {
-    sid: message.sid,
-    status: message.status,
-    to: message.to,
-  };
+
+  console.log(`✅ Message sent: ${message.sid}`);
+  return message;
 }
 
-// Verstuur vrij bericht (binnen 24u window na reply)
-export async function sendFreeformMessage({ 
-  to, 
-  body 
-}: SendFreeformMessageParams) {
+// Simpele versie voor directe berichten (geen template)
+export async function sendDirectMessage(to: string, body: string, gym?: Gym) {
+  const accountSid = gym?.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = gym?.twilio_auth_token || process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = gym?.whatsapp_number || process.env.TWILIO_WHATSAPP_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    throw new Error('Missing Twilio credentials');
+  }
+
+  const client = twilio(accountSid, authToken);
+
+  let formattedTo = to.replace(/\s/g, '');
+  if (!formattedTo.startsWith('+')) {
+    formattedTo = '+31' + formattedTo.replace(/^0/, '');
+  }
+
   const message = await client.messages.create({
-    from: whatsappNumber,
-    to: to.startsWith('whatsapp:') ? to : `whatsapp:${to}`,
+    to: `whatsapp:${formattedTo}`,
+    from: `whatsapp:${fromNumber}`,
     body,
   });
-  
-  return {
-    sid: message.sid,
-    status: message.status,
-    to: message.to,
-  };
-}
 
-// Check message status
-export async function getMessageStatus(messageSid: string) {
-  const message = await client.messages(messageSid).fetch();
-  return {
-    sid: message.sid,
-    status: message.status,
-    errorCode: message.errorCode,
-    errorMessage: message.errorMessage,
-  };
+  return message;
 }
-
-export { client as twilioClient };
