@@ -6,7 +6,9 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // Server-side client met service role key (voor API routes)
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// === GYM QUERIES ===
+// ============================================
+// GYM QUERIES
+// ============================================
 
 export async function getGymByGymlyBusinessId(businessId: string) {
   const { data, error } = await supabase
@@ -38,6 +40,21 @@ export async function getGymBySlug(slug: string) {
   return data;
 }
 
+export async function getGymById(gymId: string) {
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('id', gymId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching gym:', error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function getAllActiveGyms() {
   const { data, error } = await supabase
     .from('gyms')
@@ -52,7 +69,23 @@ export async function getAllActiveGyms() {
   return data || [];
 }
 
-// === MESSAGE TEMPLATE QUERIES ===
+export async function getAllGyms() {
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching gyms:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// ============================================
+// MESSAGE TEMPLATE QUERIES
+// ============================================
 
 export async function getMessageTemplate(gymId: string, type: string, triggerKey?: string) {
   let query = supabase
@@ -60,7 +93,7 @@ export async function getMessageTemplate(gymId: string, type: string, triggerKey
     .select('*')
     .eq('gym_id', gymId)
     .eq('type', type)
-    .eq('is_active', true);  // ✅ Fixed: was 'active'
+    .eq('is_active', true);
 
   if (triggerKey) {
     query = query.eq('trigger_key', triggerKey);
@@ -85,7 +118,7 @@ export async function getAllTemplates(gymId: string) {
     .from('message_templates')
     .select('*')
     .eq('gym_id', gymId)
-    .eq('is_active', true);  // ✅ Fixed: was 'active'
+    .order('type', { ascending: true });
 
   if (error) {
     console.error('Error fetching templates:', error);
@@ -95,7 +128,56 @@ export async function getAllTemplates(gymId: string) {
   return data || [];
 }
 
-// === MESSAGE LOG QUERIES ===
+export async function getActiveTemplates(gymId: string) {
+  const { data, error } = await supabase
+    .from('message_templates')
+    .select('*')
+    .eq('gym_id', gymId)
+    .eq('is_active', true)
+    .order('type', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching templates:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function updateTemplate(templateId: string, updates: Record<string, any>) {
+  const { data, error } = await supabase
+    .from('message_templates')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', templateId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating template:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function createTemplate(template: Record<string, any>) {
+  const { data, error } = await supabase
+    .from('message_templates')
+    .insert(template)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating template:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// ============================================
+// MESSAGE LOG QUERIES
+// ============================================
 
 export async function logMessage(
   gymId: string,
@@ -109,12 +191,11 @@ export async function logMessage(
   const { error } = await supabase.from('message_logs').insert({
     gym_id: gymId,
     type,
-    recipient_phone: phoneNumber,      // ✅ Fixed: was phone_number
+    recipient_phone: phoneNumber,
     recipient_name: recipientName,
     trigger_key: triggerKey,
     status,
     error_message: errorMessage,
-    // sent_at is automatic via DEFAULT now()
   });
 
   if (error) {
@@ -136,9 +217,9 @@ export async function hasMessageBeenSent(
     .select('id')
     .eq('gym_id', gymId)
     .eq('type', type)
-    .eq('recipient_phone', phoneNumber)  // ✅ Fixed: was phone_number
+    .eq('recipient_phone', phoneNumber)
     .eq('status', 'sent')
-    .gte('sent_at', cutoffDate.toISOString())  // ✅ Fixed: was created_at
+    .gte('sent_at', cutoffDate.toISOString())
     .limit(1);
 
   if (error) {
@@ -149,7 +230,59 @@ export async function hasMessageBeenSent(
   return (data?.length || 0) > 0;
 }
 
-// === STATS QUERIES ===
+export async function getRecentLogs(gymId: string, limit: number = 50) {
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('*')
+    .eq('gym_id', gymId)
+    .order('sent_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching logs:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getLogsByType(gymId: string, type: string, limit: number = 50) {
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('*')
+    .eq('gym_id', gymId)
+    .eq('type', type)
+    .order('sent_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching logs:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getLogsByDateRange(gymId: string, startDate: Date, endDate: Date) {
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('*')
+    .eq('gym_id', gymId)
+    .gte('sent_at', startDate.toISOString())
+    .lte('sent_at', endDate.toISOString())
+    .order('sent_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching logs:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// ============================================
+// STATS QUERIES
+// ============================================
 
 export async function getMessageStats(gymId: string) {
   // Total messages
@@ -157,6 +290,31 @@ export async function getMessageStats(gymId: string) {
     .from('message_logs')
     .select('*', { count: 'exact', head: true })
     .eq('gym_id', gymId);
+
+  // Delivered messages
+  const { count: delivered } = await supabase
+    .from('message_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('gym_id', gymId)
+    .eq('status', 'delivered');
+
+  // Failed messages
+  const { count: failed } = await supabase
+    .from('message_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('gym_id', gymId)
+    .eq('status', 'failed');
+
+  // This month
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const { count: thisMonth } = await supabase
+    .from('message_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('gym_id', gymId)
+    .gte('sent_at', startOfMonth.toISOString());
 
   // By type
   const { data: byTypeData } = await supabase
@@ -180,21 +338,48 @@ export async function getMessageStats(gymId: string) {
     byStatus[row.status] = (byStatus[row.status] || 0) + 1;
   });
 
-  // This month
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const { count: thisMonth } = await supabase
-    .from('message_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('gym_id', gymId)
-    .gte('sent_at', startOfMonth.toISOString());  // ✅ Fixed: was created_at
-
   return {
     total: total || 0,
+    delivered: delivered || 0,
+    failed: failed || 0,
     thisMonth: thisMonth || 0,
+    deliveryRate: total ? Math.round(((delivered || 0) / total) * 100) : 0,
     byType,
     byStatus,
   };
+}
+
+export async function getDailyStats(gymId: string, days: number = 30) {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const { data, error } = await supabase
+    .from('message_logs')
+    .select('sent_at, type, status')
+    .eq('gym_id', gymId)
+    .gte('sent_at', startDate.toISOString())
+    .order('sent_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching daily stats:', error);
+    return [];
+  }
+
+  // Group by date
+  const dailyMap: Record<string, { date: string; total: number; sent: number; failed: number }> = {};
+  
+  data?.forEach(row => {
+    const date = new Date(row.sent_at).toISOString().split('T')[0];
+    if (!dailyMap[date]) {
+      dailyMap[date] = { date, total: 0, sent: 0, failed: 0 };
+    }
+    dailyMap[date].total++;
+    if (row.status === 'sent' || row.status === 'delivered') {
+      dailyMap[date].sent++;
+    } else {
+      dailyMap[date].failed++;
+    }
+  });
+
+  return Object.values(dailyMap);
 }
