@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGymBySlug, getMessageTemplates } from '../../../lib/supabase/queries';
+import { getGymBySlug, getAllTemplates } from '../../../lib/supabase/queries';
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Gym not found' }, { status: 404 });
     }
     
-    const templates = await getMessageTemplates(gym.id);
+    const templates = await getAllTemplates(gym.id);
     
     return NextResponse.json({
       success: true,
