@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Gym not found' }, { status: 404 });
   }
 
-  const stats = await getMessageStats(gym.id, days);
+  const stats = await getMessageStats(gym.id, );
   const recentLogs = await getRecentLogs(gym.id, 20);
   
   return NextResponse.json({ 
