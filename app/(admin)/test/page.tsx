@@ -2,7 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase/client';
-import { useAuth } from '../../../components/AuthProvider';
+
+interface Gym {
+  id: string;
+  name: string;
+  gymly_api_key: string | null;
+  gymly_business_id: string | null;
+  twilio_account_sid: string | null;
+  twilio_auth_token: string | null;
+  whatsapp_number: string | null;
+  settings: { testPhone?: string };
+}
 
 interface InactiveMember {
   id: string;
@@ -13,42 +23,53 @@ interface InactiveMember {
 }
 
 export default function TestPage() {
-  const { user } = useAuth();
-  const [gym, setGym] = useState<any>(null);
+  const [gym, setGym] = useState<Gym | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [result, setResult] = useState<any>(null);
   
-  // Data states
+  // Inactieve leden state
   const [inactiveMembers, setInactiveMembers] = useState<{
     inactive30: InactiveMember[];
     inactive60: InactiveMember[];
     counts: { total: number; inactive30: number; inactive60: number };
   } | null>(null);
+  
+  // Custom dagen test state
+  const [customDays, setCustomDays] = useState<number>(4);
+  const [customInactive, setCustomInactive] = useState<{
+    days: number;
+    inactive: InactiveMember[];
+    counts: { total: number; inactive: number };
+  } | null>(null);
 
-  // Load gym data
   useEffect(() => {
-    async function loadGym() {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
-      const { data } = await supabase
+    loadGym();
+  }, []);
+
+  async function loadGym() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: gymData } = await supabase
         .from('gyms')
         .select('*')
         .eq('owner_id', user.id)
         .single();
 
-      if (data) setGym(data);
+      setGym(gymData);
+    } catch (error) {
+      console.error('Error loading gym:', error);
+    } finally {
       setLoading(false);
     }
-    loadGym();
-  }, [user]);
+  }
 
   const addLog = (message: string) => {
-    setLogs(prev => [`${new Date().toLocaleTimeString()} - ${message}`, ...prev.slice(0, 19)]);
+    const timestamp = new Date().toLocaleTimeString('nl-NL');
+    setLogs(prev => [`[${timestamp}] ${message}`, ...prev].slice(0, 50));
   };
 
   // === GYMLY API TESTS ===
@@ -67,7 +88,7 @@ export default function TestPage() {
       setResult(data);
       
       if (data.success) {
-        addLog(`✅ Gymly verbonden! ${data.memberCount} leden gevonden`);
+        addLog(`✅ Gymly verbinding OK - ${data.memberCount} leden gevonden`);
       } else {
         addLog(`❌ Gymly fout: ${data.error}`);
       }
@@ -98,6 +119,41 @@ export default function TestPage() {
           counts: data.counts
         });
         addLog(`📊 ${data.counts.inactive30} leden 30+ dagen inactief, ${data.counts.inactive60} leden 60+ dagen`);
+      } else {
+        addLog(`❌ Fout: ${data.error}`);
+      }
+      setResult(data);
+    } catch (error) {
+      addLog(`❌ Fout: ${error}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // === TEST: Custom dagen inactief ===
+  const fetchInactiveCustom = async () => {
+    if (!gym) return;
+    setActionLoading('inactive_custom');
+    
+    try {
+      const response = await fetch('/api/test/gymly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          gymId: gym.id, 
+          action: 'fetch_inactive_custom',
+          days: customDays 
+        }),
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setCustomInactive({
+          days: data.days,
+          inactive: data.inactive,
+          counts: data.counts
+        });
+        addLog(`🧪 TEST: ${data.counts.inactive} leden ${customDays}+ dagen inactief gevonden`);
       } else {
         addLog(`❌ Fout: ${data.error}`);
       }
@@ -275,7 +331,7 @@ export default function TestPage() {
               ) : (
                 <>
                   <span>⏰</span>
-                  Haal Inactieve Leden Op
+                  Haal Inactieve Leden Op (30/60 dagen)
                 </>
               )}
             </button>
@@ -294,6 +350,76 @@ export default function TestPage() {
                 </>
               )}
             </button>
+          </div>
+        </div>
+
+        {/* TEST: Custom Dagen Inactief */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-yellow-50">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <span>🧪</span>
+              TEST: Custom Dagen Inactief
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">Test met een lager aantal dagen</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Aantal dagen inactief
+              </label>
+              <div className="flex gap-2">
+                {[2, 4, 7, 14].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setCustomDays(d)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      customDays === d
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {d} dagen
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={fetchInactiveCustom}
+              disabled={actionLoading !== null || !hasGymlyCredentials}
+              className="w-full py-3 px-4 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            >
+              {actionLoading === 'inactive_custom' ? (
+                <span className="animate-pulse">Ophalen...</span>
+              ) : (
+                <>
+                  <span>🔍</span>
+                  Zoek leden {customDays}+ dagen inactief
+                </>
+              )}
+            </button>
+
+            {/* Custom results */}
+            {customInactive && (
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <p className="font-semibold text-yellow-800 mb-2">
+                  {customInactive.counts.inactive} leden {customInactive.days}+ dagen inactief
+                </p>
+                <div className="max-h-40 overflow-y-auto space-y-2">
+                  {customInactive.inactive.slice(0, 10).map((m) => (
+                    <div key={m.id} className="text-sm bg-white rounded p-2 flex justify-between">
+                      <span className="font-medium">{m.name}</span>
+                      <span className="text-gray-500">{m.daysSinceCheckin} dagen</span>
+                    </div>
+                  ))}
+                  {customInactive.inactive.length > 10 && (
+                    <p className="text-xs text-yellow-600">
+                      + {customInactive.inactive.length - 10} meer...
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -316,8 +442,8 @@ export default function TestPage() {
                 <span className="animate-pulse">Versturen...</span>
               ) : (
                 <>
-                  <span>✅</span>
-                  Stuur Proefles Bevestiging
+                  <span>👋</span>
+                  Stuur Proefles Bericht
                 </>
               )}
             </button>
@@ -325,14 +451,14 @@ export default function TestPage() {
             <button
               onClick={() => sendTestMessage('inactief_30')}
               disabled={actionLoading !== null || !hasTwilioCredentials || !hasTestPhone}
-              className="w-full py-3 px-4 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {actionLoading === 'send_inactief_30' ? (
                 <span className="animate-pulse">Versturen...</span>
               ) : (
                 <>
                   <span>⏰</span>
-                  Stuur Inactief 30 Dagen
+                  Stuur Inactief 30d Bericht
                 </>
               )}
             </button>
@@ -340,14 +466,14 @@ export default function TestPage() {
             <button
               onClick={() => sendTestMessage('inactief_60')}
               disabled={actionLoading !== null || !hasTwilioCredentials || !hasTestPhone}
-              className="w-full py-3 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {actionLoading === 'send_inactief_60' ? (
                 <span className="animate-pulse">Versturen...</span>
               ) : (
                 <>
                   <span>🚨</span>
-                  Stuur Inactief 60 Dagen
+                  Stuur Inactief 60d Bericht
                 </>
               )}
             </button>
@@ -355,155 +481,97 @@ export default function TestPage() {
             <button
               onClick={() => sendTestMessage('verjaardag')}
               disabled={actionLoading !== null || !hasTwilioCredentials || !hasTestPhone}
-              className="w-full py-3 px-4 bg-pink-500 text-white rounded-lg font-medium hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {actionLoading === 'send_verjaardag' ? (
                 <span className="animate-pulse">Versturen...</span>
               ) : (
                 <>
                   <span>🎂</span>
-                  Stuur Verjaardag
+                  Stuur Verjaardag Bericht
                 </>
               )}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Inactive Members List */}
-      {inactiveMembers && (
+        {/* Logs */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">
-              Inactieve Leden ({inactiveMembers.counts.inactive30} van {inactiveMembers.counts.total})
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <span>📋</span>
+              Activity Log
             </h2>
           </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-orange-600 mb-2">30+ dagen inactief ({inactiveMembers.inactive30.length})</h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {inactiveMembers.inactive30.slice(0, 10).map(member => (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                      <div>
-                        <span className="font-medium">{member.name}</span>
-                        <span className="text-sm text-gray-500 ml-2">{member.phone || 'geen nummer'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">{member.daysSinceCheckin} dagen</span>
-                        {member.phone && hasTwilioCredentials && (
-                          <button
-                            onClick={() => sendTestMessage('inactief_30', member.phone!, member.name)}
-                            disabled={actionLoading !== null}
-                            className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600"
-                          >
-                            Stuur
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {inactiveMembers.inactive30.length > 10 && (
-                    <p className="text-sm text-gray-500">En {inactiveMembers.inactive30.length - 10} meer...</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-red-600 mb-2">60+ dagen inactief ({inactiveMembers.inactive60.length})</h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {inactiveMembers.inactive60.slice(0, 10).map(member => (
-                    <div key={member.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                      <div>
-                        <span className="font-medium">{member.name}</span>
-                        <span className="text-sm text-gray-500 ml-2">{member.phone || 'geen nummer'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">{member.daysSinceCheckin} dagen</span>
-                        {member.phone && hasTwilioCredentials && (
-                          <button
-                            onClick={() => sendTestMessage('inactief_60', member.phone!, member.name)}
-                            disabled={actionLoading !== null}
-                            className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                          >
-                            Stuur
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {inactiveMembers.inactive60.length > 10 && (
-                    <p className="text-sm text-gray-500">En {inactiveMembers.inactive60.length - 10} meer...</p>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div className="p-4 h-64 overflow-y-auto bg-gray-900 font-mono text-sm">
+            {logs.length === 0 ? (
+              <p className="text-gray-500">Nog geen activiteit...</p>
+            ) : (
+              logs.map((log, i) => (
+                <p key={i} className="text-green-400 mb-1">{log}</p>
+              ))
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Activity Log */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-            <span>📋</span>
-            Activiteit Log
-          </h2>
-          {logs.length > 0 && (
-            <button onClick={() => setLogs([])} className="text-sm text-gray-400 hover:text-gray-600">
-              Wissen
-            </button>
-          )}
-        </div>
-        <div className="p-6">
-          {logs.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <span className="text-3xl block mb-2">📭</span>
-              <p>Nog geen activiteit</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {logs.map((log, index) => (
-                <div key={index} className="text-sm py-2 px-3 bg-gray-50 rounded-lg text-gray-600">
-                  {log}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* API Response */}
+      {/* Results */}
       {result && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <span>📊</span>
-              API Response
-            </h2>
-            <button onClick={() => setResult(null)} className="text-sm text-gray-400 hover:text-gray-600">
-              Sluiten
-            </button>
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900">Laatste Resultaat (JSON)</h2>
           </div>
-          <div className="p-6">
-            <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm max-h-96">
+          <div className="p-4 bg-gray-900 overflow-x-auto">
+            <pre className="text-green-400 text-sm">
               {JSON.stringify(result, null, 2)}
             </pre>
           </div>
         </div>
       )}
 
-      {/* Sandbox Notice */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
-        <span className="text-xl">⚠️</span>
-        <div>
-          <p className="font-medium text-yellow-800">WhatsApp Sandbox</p>
-          <p className="text-sm text-yellow-700 mt-1">
-            Bij sandbox modus moet het ontvangende nummer eerst de join-code sturen naar {gym.whatsapp_number || 'je Twilio nummer'}.
-            Check je Twilio console voor de specifieke join-code.
-          </p>
+      {/* Inactieve leden results */}
+      {inactiveMembers && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900">
+              Inactieve Leden ({inactiveMembers.counts.total} totaal)
+            </h2>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 30 dagen */}
+            <div>
+              <h3 className="font-medium text-purple-600 mb-3">
+                30+ dagen inactief ({inactiveMembers.counts.inactive30})
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {inactiveMembers.inactive30.slice(0, 20).map((m) => (
+                  <div key={m.id} className="bg-purple-50 rounded-lg p-3 text-sm">
+                    <p className="font-medium">{m.name}</p>
+                    <p className="text-gray-500">{m.phone || 'Geen nummer'}</p>
+                    <p className="text-purple-600">{m.daysSinceCheckin} dagen geleden</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* 60 dagen */}
+            <div>
+              <h3 className="font-medium text-red-600 mb-3">
+                60+ dagen inactief ({inactiveMembers.counts.inactive60})
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {inactiveMembers.inactive60.slice(0, 20).map((m) => (
+                  <div key={m.id} className="bg-red-50 rounded-lg p-3 text-sm">
+                    <p className="font-medium">{m.name}</p>
+                    <p className="text-gray-500">{m.phone || 'Geen nummer'}</p>
+                    <p className="text-red-600">{m.daysSinceCheckin} dagen geleden</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

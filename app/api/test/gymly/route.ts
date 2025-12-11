@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { gymId, action } = await request.json();
+    const { gymId, action, days } = await request.json();
 
     // Haal gym op
     const { data: gym, error } = await supabase
@@ -56,12 +56,12 @@ export async function POST(request: Request) {
       const members = await getAllActiveMembers(gym, true);
       return NextResponse.json({
         success: true,
-        members: members.slice(0, 50), // Max 50 voor preview
+        members: members.slice(0, 50),
         totalCount: members.length
       });
     }
 
-    // Haal inactieve leden op
+    // Haal inactieve leden op (standaard)
     if (action === 'fetch_inactive') {
       const members = await getAllActiveMembers(gym);
       const inactive30 = getInactiveMembers(members, 30);
@@ -91,6 +91,31 @@ export async function POST(request: Request) {
           total: members.length,
           inactive30: inactive30.length,
           inactive60: inactive60.length
+        }
+      });
+    }
+
+    // === TEST: Haal inactieve leden op met CUSTOM dagen ===
+    if (action === 'fetch_inactive_custom') {
+      const customDays = days || 4; // Default 4 dagen voor testen
+      const members = await getAllActiveMembers(gym);
+      const inactiveCustom = getInactiveMembers(members, customDays);
+      
+      return NextResponse.json({
+        success: true,
+        days: customDays,
+        inactive: inactiveCustom.map(m => ({
+          id: m.id,
+          name: m.fullName || `${m.firstName} ${m.lastName}`,
+          phone: m.phoneNumber,
+          lastCheckin: m.lastCheckinAt,
+          daysSinceCheckin: m.lastCheckinAt 
+            ? Math.floor((Date.now() - new Date(m.lastCheckinAt).getTime()) / (1000 * 60 * 60 * 24))
+            : null
+        })),
+        counts: {
+          total: members.length,
+          inactive: inactiveCustom.length
         }
       });
     }
